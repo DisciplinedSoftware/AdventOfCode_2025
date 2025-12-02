@@ -39,7 +39,7 @@ cat > "./$day_padded/src/d$day_padded.cpp" << EOL
 using namespace std::string_literals;
 
 auto parse(std::string const & filename) {
-    std::filesystem::path const base = "./input/d$day_padded"s;
+    std::filesystem::path const base = "./$day_padded/input"s;
     auto const filepath = base / filename;
 
      data;
