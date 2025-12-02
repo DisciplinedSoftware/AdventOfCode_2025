@@ -32,7 +32,6 @@ unsigned long long solve_problem_1(std::string const& filename) {
         throw std::runtime_error("Could not open file: " + filepath.string());
     }
     while (std::getline(stream, line) || !line.empty()) {
-        std::istringstream line_stream(line);
         auto steps = std::stoi(line.substr(1));
         if (line[0] == 'L') {
             dial -= steps;
@@ -66,7 +65,6 @@ unsigned long long solve_problem_2(std::string const& filename) {
         throw std::runtime_error("Could not open file: " + filepath.string());
     }
     while (std::getline(stream, line) || !line.empty()) {
-        std::istringstream line_stream(line);
         auto steps = std::stoi(line.substr(1));
 
         counter += static_cast<unsigned long long>(steps / 100);
