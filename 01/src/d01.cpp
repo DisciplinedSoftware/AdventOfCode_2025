@@ -69,7 +69,7 @@ unsigned long long solve_problem_2(std::string const& filename) {
         std::istringstream line_stream(line);
         auto steps = std::stoi(line.substr(1));
 
-        counter += steps / 100;
+        counter += static_cast<unsigned long long>(steps / 100);
         steps %= 100;
 
         if (line[0] == 'L') {

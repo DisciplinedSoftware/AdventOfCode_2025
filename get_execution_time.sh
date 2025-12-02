@@ -24,7 +24,7 @@ for i in {01..25}; do
         continue
     fi
 
-    program="./out/Release/d$i"
+    program="./build/Release/d$i"
     total_time=0
     
     echo "Running $program $RUNS times..."
