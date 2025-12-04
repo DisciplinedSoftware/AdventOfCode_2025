@@ -19,60 +19,12 @@
 
 using namespace std::string_literals;
 
-unsigned long long solve_problem_1(std::string const& filename) {
-    std::filesystem::path const base = "./02/input"s;
-    auto const filepath = base / filename;
-
-    unsigned long long result = 0;
-
-    std::ifstream stream(filepath);
-    if (stream.fail()) {
-        throw std::runtime_error("Could not open file: " + filepath.string());
-    }
-    std::string line;
-    std::getline(stream, line);
-    std::size_t offset = 0;
-    while (offset < line.size()) {
-        auto const end_first = line.find('-', offset);
-        auto const first = line.substr(offset, end_first - offset);
-        offset = end_first + 1;
-        auto const end_last = line.find(',', offset);
-        auto const last = line.substr(offset, end_last - offset);
-        offset = end_last;
-        if (offset != std::string::npos) {
-            ++offset;
-        }
-
-        auto const lower_bound = std::stoull(std::string(first));
-        auto const upper_bound = std::stoull(std::string(last));
-
-        auto begin = first.substr(0, first.length()/2);
-        if (first.length() % 2 != 0) {
-            begin = std::string(first.length()/2 + 1, '0');
-            begin[0] = '1';
-        }
-
-        auto half_value = std::stoull(begin);
-        auto length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-        auto multiplier = static_cast<unsigned long long>(std::pow(10, length));
-        auto value = half_value * multiplier + half_value;
-        if (value < lower_bound) {
-            ++half_value;
-            length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-            multiplier = static_cast<unsigned long long>(std::pow(10, length));
-            value = half_value * multiplier + half_value;
-        }
-
-        while (value <= upper_bound) {
-            result += value;
-            ++half_value;
-            length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-            multiplier = static_cast<unsigned long long>(std::pow(10, length));
-            value = half_value * multiplier + half_value;
-        }
-    }
-
-    return result;
+static unsigned long long make_repeated_value(unsigned long long half, size_t times) {
+    std::string s = std::to_string(half);
+    std::string total;
+    total.reserve(s.size() * times);
+    for (size_t i = 0; i < times; ++i) total += s;
+    return std::stoull(total);
 }
 
 
@@ -92,41 +44,27 @@ unsigned long long count_invalid_id(
     }
 
     auto half_value = std::stoull(begin);
-    auto length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-    auto multiplier = static_cast<unsigned long long>(std::pow(10, length));
-    auto value = half_value;
-    for (size_t i = 1; i < nb_repetitions; ++i) {
-        value = value * multiplier + half_value;
-    }
+
+    auto value = make_repeated_value(half_value, nb_repetitions);
 
     if (value < lower_bound) {
         ++half_value;
-        length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-        multiplier = static_cast<unsigned long long>(std::pow(10, length));
-        value = half_value;
-        for (size_t i = 1; i < nb_repetitions; ++i) {
-            value = value * multiplier + half_value;
-        }
+        value = make_repeated_value(half_value, nb_repetitions);
     }
 
     while (value <= upper_bound) {
-        if (seen.contains(value) == false) {
+        if (!seen.contains(value)) {
             seen.insert(value);
             result += value;
         }
         ++half_value;
-        length = static_cast<unsigned long long>(std::log10(half_value)) + 1;
-        multiplier = static_cast<unsigned long long>(std::pow(10, length));
-        value = half_value;
-        for (size_t i = 1; i < nb_repetitions; ++i) {
-            value = value * multiplier + half_value;
-        }
+        value = make_repeated_value(half_value, nb_repetitions);
     }
 
     return result;
 }
 
-unsigned long long solve_problem_2(std::string const& filename) {
+unsigned long long count_invalid_id(std::string const& filename, size_t nb_max_repetitions) {
     std::filesystem::path const base = "./02/input"s;
     auto const filepath = base / filename;
 
@@ -156,12 +94,20 @@ unsigned long long solve_problem_2(std::string const& filename) {
 
         result += count_invalid_id(first, lower_bound, upper_bound, 2, seen);
 
-        for (size_t nb_repetitions = 3; nb_repetitions <= last.length(); nb_repetitions += 2) {
+        for (size_t nb_repetitions = 3; nb_repetitions <= nb_max_repetitions && nb_repetitions <= last.length(); nb_repetitions += 2) {
             result += count_invalid_id(first, lower_bound, upper_bound, nb_repetitions, seen);
         }
     }
 
     return result;
+}
+
+unsigned long long solve_problem_1(std::string const& filename) {
+    return count_invalid_id(filename, 2);
+}
+
+unsigned long long solve_problem_2(std::string const& filename) {
+    return count_invalid_id(filename, std::numeric_limits<size_t>::max());
 }
 
 void expect(auto const & result, auto const & reference) {
@@ -174,8 +120,8 @@ void expect(auto const & result, auto const & reference) {
 }
 
 int main() {
-    // expect(solve_problem_1("example"s), 1227775554ull);
-    // std::cout << solve_problem_1("first"s) << std::endl;
+    expect(solve_problem_1("example"s), 1227775554ull);
+    std::cout << solve_problem_1("first"s) << std::endl;
 
     expect(solve_problem_2("example"s), 4174379265ull);
     std::cout << solve_problem_2("first"s) << std::endl;
