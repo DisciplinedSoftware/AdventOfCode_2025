@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -27,6 +28,34 @@ static unsigned long long make_repeated_value(unsigned long long half, size_t ti
     return std::stoull(total);
 }
 
+static std::generator<std::pair<std::string,std::string>> get_data(std::string const& filename) {
+    std::filesystem::path const base = "./02/input"s;
+    auto const filepath = base / filename;
+
+    std::ifstream stream(filepath);
+    if (stream.fail()) {
+        throw std::runtime_error("Could not open file: " + filepath.string());
+    }
+
+    std::string line;
+    if (!std::getline(stream, line)) {
+        throw std::runtime_error("Unable to read line from file: " + filepath.string());
+    }
+
+    std::size_t offset = 0;
+    while (offset < line.size()) {
+        auto const end_first = line.find('-', offset);
+        auto const first = line.substr(offset, end_first - offset);
+        offset = end_first + 1;
+        auto const end_last = line.find(',', offset);
+        auto const last = line.substr(offset, end_last - offset);
+        offset = end_last;
+        if (offset != std::string::npos) {
+            ++offset;
+        }
+        co_yield {first, last};
+    }
+}
 
 unsigned long long count_invalid_id(
     std::string const& first,
@@ -65,32 +94,12 @@ unsigned long long count_invalid_id(
 }
 
 unsigned long long count_invalid_id(std::string const& filename, size_t nb_max_repetitions) {
-    std::filesystem::path const base = "./02/input"s;
-    auto const filepath = base / filename;
-
     unsigned long long result = 0;
     std::unordered_set<unsigned long long> seen;
 
-    std::ifstream stream(filepath);
-    if (stream.fail()) {
-        throw std::runtime_error("Could not open file: " + filepath.string());
-    }
-    std::string line;
-    std::getline(stream, line);
-    std::size_t offset = 0;
-    while (offset < line.size()) {
-        auto const end_first = line.find('-', offset);
-        auto const first = line.substr(offset, end_first - offset);
-        offset = end_first + 1;
-        auto const end_last = line.find(',', offset);
-        auto const last = line.substr(offset, end_last - offset);
-        offset = end_last;
-        if (offset != std::string::npos) {
-            ++offset;
-        }
-
-        auto const lower_bound = std::stoull(std::string(first));
-        auto const upper_bound = std::stoull(std::string(last));
+    for (auto const& [first, last] : get_data(filename)) {
+        auto const lower_bound = std::stoull(first);
+        auto const upper_bound = std::stoull(last);
 
         result += count_invalid_id(first, lower_bound, upper_bound, 2, seen);
 
