@@ -23,24 +23,6 @@ inline unsigned long long to_value(char c) {
     return static_cast<unsigned long long>(c - '0');
 }
 
-inline unsigned long long to_joltage(unsigned long long v1, unsigned long long v2) {
-    return v1 * 10 + v2;
-}
-
-unsigned long long get_max_joltage(std::string const& str) {
-    unsigned long long max_joltage = 0;
-    auto current_max_digit = to_value(str[0]);
-
-    for (auto c : str | std::views::drop(1)) {
-        auto const v = to_value(c);
-        auto const current_joltage = to_joltage(current_max_digit, v);
-        current_max_digit = std::max(current_max_digit, v);
-        max_joltage = std::max(max_joltage, current_joltage);
-    }
-
-    return max_joltage;
-}
-
 unsigned long long get_max_joltage(std::string const& str, unsigned long long nb_batteries) {
     unsigned long long max_joltage = 0;
     auto begin = str.begin();
@@ -53,7 +35,7 @@ unsigned long long get_max_joltage(std::string const& str, unsigned long long nb
     return max_joltage;
 }
 
-unsigned long long solve_problem_1(std::string const& filename) {
+unsigned long long get_joltage(std::string const& filename, unsigned long long nb_batteries) {
     std::filesystem::path const base = "./03/input"s;
     auto const filepath = base / filename;
 
@@ -62,25 +44,19 @@ unsigned long long solve_problem_1(std::string const& filename) {
     std::ifstream stream(filepath);
     std::string line;
     while (std::getline(stream, line) || !line.empty()) {
-        sum += get_max_joltage(line, 2);
+        sum += get_max_joltage(line, nb_batteries);
     }
 
     return sum;
 }
 
+
+unsigned long long solve_problem_1(std::string const& filename) {
+    return get_joltage(filename, 2);
+}
+
 unsigned long long solve_problem_2(std::string const& filename) {
-    std::filesystem::path const base = "./03/input"s;
-    auto const filepath = base / filename;
-
-    unsigned long long sum = 0;
-
-    std::ifstream stream(filepath);
-    std::string line;
-    while (std::getline(stream, line) || !line.empty()) {
-        sum += get_max_joltage(line, 12);
-    }
-
-    return sum;
+    return get_joltage(filename, 12);
 }
 
 void expect(auto const & result, auto const & reference) {
@@ -93,10 +69,10 @@ void expect(auto const & result, auto const & reference) {
 }
 
 int main() {
-    expect(get_max_joltage("987654321111111"s), 98ull);
-    expect(get_max_joltage("811111111111119"s), 89ull);
-    expect(get_max_joltage("234234234234278"s), 78ull);
-    expect(get_max_joltage("818181911112111"s), 92ull);
+    expect(get_max_joltage("987654321111111"s, 2), 98ull);
+    expect(get_max_joltage("811111111111119"s, 2), 89ull);
+    expect(get_max_joltage("234234234234278"s, 2), 78ull);
+    expect(get_max_joltage("818181911112111"s, 2), 92ull);
 
     expect(solve_problem_1("example"s), 357ull);
     std::cout << solve_problem_1("first"s) << std::endl;
