@@ -115,6 +115,30 @@ unsigned long long solve_problem_1(std::string const& filename) {
     return result;
 }
 
+unsigned long long solve_problem_2(std::string const& filename) {
+    std::filesystem::path const base = "./05/input"s;
+    auto const filepath = base / filename;
+
+    std::vector<Interval> fresh_intervals;
+
+    std::ifstream stream(filepath);
+    std::string line;
+    // Parse fresh ingredients ID ranges
+    while (std::getline(stream, line) && !line.empty()) {
+        auto const separator = line.find('-');
+        auto const begin = std::stoull(line.substr(0, separator));
+        auto const end = std::stoull(line.substr(separator + 1));
+        fresh_intervals.emplace_back(begin, end);
+    }
+
+    sort_and_merge_intervals(fresh_intervals);
+
+    return std::ranges::fold_left(fresh_intervals, 0ull,
+        [](unsigned long long acc, Interval const& interval) {
+            return acc + (interval.end - interval.begin + 1);
+        });
+}
+
 void expect(auto const & result, auto const & reference) {
     if (result == reference) {
         std::cout << "Success" << std::endl;
@@ -143,6 +167,6 @@ int main() {
     expect(solve_problem_1("example"s), 3ull);
     std::cout << solve_problem_1("first"s) << std::endl;
 
-    // expect(solve_problem_2("example"s), 14ull);
-    // std::cout << solve_problem_2("first"s) << std::endl;
+    expect(solve_problem_2("example"s), 14ull);
+    std::cout << solve_problem_2("first"s) << std::endl;
 }
