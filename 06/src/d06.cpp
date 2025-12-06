@@ -19,7 +19,7 @@
 
 using namespace std::string_literals;
 
-unsigned long long solve_problem_1(std::string const& filename) {
+std::pair<std::vector<std::string>, std::string> parse(std::string const& filename) {
     std::filesystem::path const base = "./06/input"s;
     auto const filepath = base / filename;
 
@@ -35,6 +35,12 @@ unsigned long long solve_problem_1(std::string const& filename) {
 
     auto const lineOp = lines.back();
     lines.pop_back();
+
+    return {lines, lineOp};
+}
+
+unsigned long long solve_problem_1(std::string const& filename) {
+    auto const [lines, lineOp] = parse(filename);
 
     std::vector<size_t> positions;
     positions.reserve(lines.size());
@@ -73,6 +79,45 @@ unsigned long long solve_problem_1(std::string const& filename) {
     return result;
 }
 
+unsigned long long solve_problem_2(std::string const& filename) {
+    auto const [lines, lineOp] = parse(filename);
+
+    unsigned long long result = 0;
+    size_t pos = 0;
+    while (pos < lineOp.size()) {
+        char const op = lineOp[pos];
+        std::vector<unsigned long long> nums;
+        while (pos < lineOp.size()) {
+            auto valid = false;
+            unsigned long long num = 0ull;
+            for (auto const& line : lines) {
+                auto c = line[pos];
+                if (c != ' ') {
+                    valid = true;
+                    num = num * 10 + (c - '0');
+                }
+            }
+            ++pos;
+
+            if (!valid) {
+                break;
+            }
+            nums.push_back(num);
+        }
+
+        if (op == '+') {
+            auto const value = std::ranges::fold_left(nums, 0ull, std::plus<>{});
+            result += value;
+        }
+        else if (op == '*') {
+            auto const value = std::ranges::fold_left(nums, 1ull, std::multiplies<>{});
+            result += value;
+        }
+    }
+
+    return result;
+}
+
 void expect(auto const & result, auto const & reference) {
     if (result == reference) {
         std::cout << "Success" << std::endl;
@@ -86,6 +131,6 @@ int main() {
     expect(solve_problem_1("example"s), 4277556ull);
     std::cout << solve_problem_1("first"s) << std::endl;
 
-    // expect(solve_problem_2("example"s), );
-    // std::cout << solve_problem_2("first"s) << std::endl;
+    expect(solve_problem_2("example"s), 3263827ull);
+    std::cout << solve_problem_2("first"s) << std::endl;
 }
