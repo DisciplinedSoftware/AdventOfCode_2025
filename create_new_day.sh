@@ -6,6 +6,16 @@ read -p "Enter the day number: " day
 # Format day number to have leading zero if necessary
 day_padded=$(printf "%02d" $day)
 
+# Add a question when the folder or file already exists
+if [ -d "./$day_padded" ] || [ -f "./$day_padded/src/d$day_padded.cpp" ]; then
+    read -p "The directory or file for day $day_padded already exists. Do you want to overwrite it? (y/n) " choice
+    case "$choice" in 
+      y|Y ) echo "Overwriting...";;
+      n|N ) echo "Aborting."; exit 1;;
+      * ) echo "Invalid choice. Aborting."; exit 1;;
+    esac
+fi
+
 # Create the directory structure
 mkdir -p "./$day_padded/src"
 mkdir -p "./$day_padded/input"
