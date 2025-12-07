@@ -24,9 +24,11 @@ cat > "./$day_padded/src/d$day_padded.cpp" << EOL
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <ranges>
 #include <regex>
+#include <set>
 #include <span>
 #include <sstream>
 #include <string>
@@ -38,37 +40,47 @@ cat > "./$day_padded/src/d$day_padded.cpp" << EOL
 
 using namespace std::string_literals;
 
-auto parse(std::string const & filename) {
+std::ifstream open(std::string const & filename) {
     std::filesystem::path const base = "./$day_padded/input"s;
     auto const filepath = base / filename;
-
-     data;
-
     std::ifstream stream(filepath);
+    if (!stream.is_open()) {
+        throw std::runtime_error("Could not open file: "s + filepath.string());
+    }
+
+    return stream;
+}
+
+unsigned long long solve_problem_1(std::ifstream&& stream) {
+    unsigned long long result = 0;
+
     std::string line;
     while (std::getline(stream, line)) {
         std::istringstream line_stream(line);
         
     }
 
-    return data;
-}
-
-
-unsigned long long solve_problem_1(auto const & data) {
-    return 0;
+    return result;
 }
 
 unsigned long long solve_problem_1(std::string const& filename) {
-    return solve_problem_1(parse(filename));
+    return solve_problem_1(open(filename));
 }
 
-unsigned long long solve_problem_2(auto const & data) {
-    return 0;
+unsigned long long solve_problem_2(std::ifstream&& stream) {
+    unsigned long long result = 0;
+
+    std::string line;
+    while (std::getline(stream, line)) {
+        std::istringstream line_stream(line);
+        
+    }
+
+    return result;
 }
 
 unsigned long long solve_problem_2(std::string const& filename) {
-    return solve_problem_2(parse(filename));
+    return solve_problem_2(open(filename));
 }
 
 void expect(auto const & result, auto const & reference) {
