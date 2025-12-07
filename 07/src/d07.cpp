@@ -38,18 +38,14 @@ unsigned long long solve_problem_1(std::string const& filename) {
     beams.reserve(line.size());
     beams.emplace(line.find('S'));
     std::unordered_set<size_t> next_beams;
-    next_beams.reserve(beams.size());
+    next_beams.reserve(line.size());
 
     while (std::getline(stream, line) && !line.empty()) {
         for (auto beam : beams) {
             if (line[beam] == '^') {
                 ++result;
-                if (beam != 0) {
-                    next_beams.emplace(beam-1);
-                }
-                if (beam != line.size()-1) {
-                    next_beams.emplace(beam+1);
-                }
+                next_beams.emplace(beam-1);
+                next_beams.emplace(beam+1);
             }
             else {
                 next_beams.emplace(beam);
@@ -61,6 +57,53 @@ unsigned long long solve_problem_1(std::string const& filename) {
     }
 
     return result;
+}
+
+unsigned long long compute_nb_timelines(size_t beam, size_t row, std::vector<std::unordered_set<size_t>> const& splitters) {
+    if (row == splitters.size()) {
+        return 1;
+    }
+
+    if (splitters[row].contains(beam)) {
+        return compute_nb_timelines(beam-1, row+1, splitters) + compute_nb_timelines(beam+1, row+1, splitters);
+    }
+    else {
+        return compute_nb_timelines(beam, row+1, splitters);
+    }
+}
+
+unsigned long long solve_problem_2(std::string const& filename) {
+    std::filesystem::path const base = "./07/input"s;
+    auto const filepath = base / filename;
+    std::ifstream stream(filepath);
+    if (!stream.is_open()) {
+        throw std::runtime_error("Could not open file: "s + filepath.string());
+    }
+
+    unsigned long long result = 0;
+
+    std::string line;
+    if (!std::getline(stream, line) || line.empty()) {
+        throw std::runtime_error("Could not read from file: "s + filepath.string());
+    }
+
+    size_t const beam = line.find('S');
+
+    if (beam == std::string::npos) {
+        throw std::runtime_error("Invalid file format: "s + filepath.string());
+    }
+
+    std::vector<std::unordered_set<size_t>> splitters;
+    while (std::getline(stream, line) && !line.empty()) {
+        splitters.emplace_back();
+        auto pos = line.find('^');
+        while (pos != std::string::npos) {
+            splitters.back().emplace(pos);
+            pos = line.find('^', pos+1);
+        }
+    }
+
+    return compute_nb_timelines(beam, 0, splitters);
 }
 
 void expect(auto const & result, auto const & reference) {
@@ -76,6 +119,6 @@ int main() {
     expect(solve_problem_1("example"s), 21);
     std::cout << solve_problem_1("first"s) << std::endl;
 
-    // expect(solve_problem_2("example"s), );
-    // std::cout << solve_problem_2("first"s) << std::endl;
+    expect(solve_problem_2("example"s), 40);
+    std::cout << solve_problem_2("first"s) << std::endl;
 }
