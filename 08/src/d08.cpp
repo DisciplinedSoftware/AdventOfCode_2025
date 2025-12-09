@@ -130,15 +130,72 @@ unsigned long long solve_problem_1(std::string const& filename, unsigned int nb_
 }
 
 unsigned long long solve_problem_2(std::ifstream&& stream) {
-    unsigned long long result = 0;
+    std::vector<Point3D> connections;
 
     std::string line;
     while (std::getline(stream, line)) {
         std::istringstream line_stream(line);
-        
+        unsigned long long x, y, z;
+        char dummy;
+        line_stream >> x >> dummy >> y >> dummy >> z;
+        connections.emplace_back(x, y, z);
     }
 
-    return result;
+    std::vector<std::pair<unsigned long long, std::pair<size_t, size_t>>> distances;
+    for (size_t i = 0; i < connections.size(); ++i) {
+        auto const& [x1, y1, z1] = connections[i];
+        for (size_t j = i+1; j < connections.size(); ++j) {
+            auto const& [x2, y2, z2] = connections[j];
+            unsigned long long const dx = x2 - x1;
+            unsigned long long const dy = y2 - y1;
+            unsigned long long const dz = z2 - z1;
+            unsigned long long const distance = dx*dx + dy*dy + dz*dz;
+            distances.emplace_back(distance, std::make_pair(i, j));
+        }
+    }
+
+    std::pair<Point3D, Point3D> result;
+    std::vector<std::unordered_set<size_t>> junctions;
+    std::ranges::sort(distances);
+    for (auto const& [distance, connection] : distances) {
+        auto it_first = std::ranges::find_if(junctions, [&connection](auto const& junction) {
+            return junction.contains(connection.first);
+        });
+        auto it_second = std::ranges::find_if(junctions, [&connection](auto const& junction) {
+            return junction.contains(connection.second);
+        });
+        if (it_first != junctions.end() && it_first == it_second) {
+            continue;
+        }
+
+        if (it_first != junctions.end() && it_second != junctions.end()) {
+            std::unordered_set<size_t>& set_first = *it_first;
+            std::unordered_set<size_t>& set_second = *it_second;
+            std::merge(set_first.begin(), set_first.end(),
+                       set_second.begin(), set_second.end(),
+                       std::inserter(set_first, set_first.end()));
+            junctions.erase(it_second);
+        }
+        else if (it_first != junctions.end()) {
+            it_first->emplace(connection.second);
+        }
+        else if (it_second != junctions.end()) {
+            it_second->emplace(connection.first);
+        }
+        else {
+            junctions.emplace_back(std::unordered_set<size_t>{connection.first, connection.second});
+        }
+
+        auto it_full = std::find_if(junctions.begin(), junctions.end(), [&connections](auto const& junction) {
+            return junction.size() == connections.size();
+        });
+        if (it_full != junctions.end()) {
+            result = {connections[connection.first], connections[connection.second]};
+            break;
+        }
+    }
+
+    return result.first.x * result.second.x;
 }
 
 unsigned long long solve_problem_2(std::string const& filename) {
@@ -158,6 +215,6 @@ int main() {
     expect(solve_problem_1("example"s, 10), 40);
     std::cout << solve_problem_1("first"s, 1000) << std::endl;
 
-    // expect(solve_problem_2("example"s), 25272);
-    // std::cout << solve_problem_2("first"s) << std::endl;
+    expect(solve_problem_2("example"s), 25272);
+    std::cout << solve_problem_2("first"s) << std::endl;
 }
