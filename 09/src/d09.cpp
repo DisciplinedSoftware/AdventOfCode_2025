@@ -74,8 +74,9 @@ bool point_in_polygon(long long px, long long py, std::vector<std::pair<long lon
     for (size_t i = 0, j = n - 1; i < n; j = i++) {
         auto [xi, yi] = polygon[i];
         auto [xj, yj] = polygon[j];
+        long double dy = yj - yi;
         if (((yi > py) != (yj > py)) &&
-            (px < (xj - xi) * (py - yi) / static_cast<double>(yj - yi) + xi)) {
+            (px < (xj - xi) * (py - yi) / dy + xi)) {
             inside = !inside;
         }
     }
@@ -102,7 +103,6 @@ bool point_on_border(long long px, long long py,
 
 bool edges_intersect(long long r_x1, long long r_y1, long long r_x2, long long r_y2,  // Rectangle edge
                      long long p_x1, long long p_y1, long long p_x2, long long p_y2) {  // Polygon edge
-    // Assume axis-aligned: one horizontal, one vertical
     if (r_y1 == r_y2 && p_x1 == p_x2) {  // Rect horizontal, poly vertical
         return (p_x1 >= std::min(r_x1, r_x2) && p_x1 <= std::max(r_x1, r_x2)) &&
                (r_y1 >= std::min(p_y1, p_y2) && r_y1 <= std::max(p_y1, p_y2));
@@ -111,7 +111,7 @@ bool edges_intersect(long long r_x1, long long r_y1, long long r_x2, long long r
                (r_x1 >= std::min(p_x1, p_x2) && r_x1 <= std::max(p_x1, p_x2));
     }
 
-    return false;  // Same orientation or diagonal (no intersect)
+    return false;   // no intersection
 }
 
 bool rectangle_inside_polygon(long long min_x, long long min_y,
@@ -140,8 +140,8 @@ bool rectangle_inside_polygon(long long min_x, long long min_y,
             {max_x, max_y}
         },
         [&points, &vertical_edges, &horizontal_edges](auto const& point) {
-            return point_in_polygon(point.first, point.second, points) || 
-                   point_on_border(point.first, point.second, vertical_edges, horizontal_edges);
+            return point_on_border(point.first, point.second, vertical_edges, horizontal_edges) || 
+                   point_in_polygon(point.first, point.second, points);
         }
     );
 
