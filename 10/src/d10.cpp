@@ -118,8 +118,12 @@ unsigned long long solve_problem_1(std::string const& filename) {
 unsigned long long solve_problem_2(std::ifstream&& stream) {
     unsigned long long result = 0;
 
+    unsigned int counter = 0;
+
     std::string line;
     while (std::getline(stream, line)) {
+        std::cout << "Processing line " << counter++ << "\n";
+
         // [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
         std::vector<int> joltage_final_state;
         std::vector<std::vector<int>> buttons;
@@ -173,7 +177,6 @@ unsigned long long solve_problem_2(std::ifstream&& stream) {
         };
 
         std::unordered_set<std::vector<int>, decltype(hash_fct)> visited_states(0, hash_fct);
-        // Use bfs to find the minimum number of presses to turn on all lights_final_state
         std::queue<std::tuple<std::vector<int>, int, std::vector<int>>> bfs_queue;
 
         std::vector<int> joltage_initial_state(joltage_final_state.size(), 0);
@@ -196,34 +199,60 @@ unsigned long long solve_problem_2(std::ifstream&& stream) {
             bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed, buttons_pressed);
         }
 
+        std::unordered_set<std::vector<int>, decltype(hash_fct)> visited_states_plus(0, hash_fct);
+        auto add_button_pressed = [&hash_fct, &result, &buttons, &joltage_final_state, &visited_states_plus](std::vector<int> const& joltage_initial_state, int nb_buttons_pressed, std::vector<int> const& buttons_pressed) {
+            std::queue<std::tuple<std::vector<int>, int, std::vector<int>>> bfs_queue;
+            bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed, buttons_pressed);
+            visited_states_plus.emplace(joltage_initial_state);
+
+            while (!bfs_queue.empty()) {
+                auto [joltage_current_state, nb_buttons_pressed, buttons_pressed] = bfs_queue.front();
+                bfs_queue.pop();
+
+                if (joltage_current_state == joltage_final_state) {
+                    result += nb_buttons_pressed;
+                    return true;
+                }
+
+                for (size_t i = 0; i < buttons.size(); ++i) {
+                    auto next_button_pressed = buttons_pressed;
+                    next_button_pressed[i] += 1;
+                    auto joltage_next_state_plus = joltage_current_state;
+                    bool valid_plus = true;
+                    for (auto const j : buttons[i]) {
+                        joltage_next_state_plus[j] += 1;
+                        if (joltage_next_state_plus[j] > joltage_final_state[j]) {
+                            valid_plus = false;
+                        }
+                    }
+
+                    if (valid_plus && !visited_states_plus.contains(joltage_next_state_plus)) {
+                        visited_states_plus.emplace(joltage_next_state_plus);
+                        bfs_queue.emplace(joltage_next_state_plus, nb_buttons_pressed + 1, next_button_pressed);
+                    }
+                }
+            }
+
+            return false;
+        };
+
         visited_states.emplace(joltage_initial_state);
         while (!bfs_queue.empty()) {
             auto [joltage_current_state, nb_buttons_pressed, buttons_pressed] = bfs_queue.front();
             bfs_queue.pop();
 
-            if (joltage_current_state == joltage_final_state) {
-                result += nb_buttons_pressed;
-                break;
+            std::cout << "Current state: ";
+            for (auto const v : joltage_current_state) {
+                std::cout << v << " ";
             }
-
-            for (size_t i = 0; i < buttons.size(); ++i) {
-                auto next_button_pressed = buttons_pressed;
-                next_button_pressed[i] += 1;
-                auto joltage_next_state_plus = joltage_current_state;
-                bool valid_plus = true;
-                for (auto const j : buttons[i]) {
-                    joltage_next_state_plus[j] += 1;
-                    if (joltage_next_state_plus[j] > joltage_final_state[j]) {
-                        valid_plus = false;
-                    }
-                }
-
-                if (valid_plus && !visited_states.contains(joltage_next_state_plus)) {
-                    visited_states.emplace(joltage_next_state_plus);
-                    auto const sum = std::ranges::fold_left(next_button_pressed, 0, std::plus{});
-                    assert(sum == nb_buttons_pressed + 1);
-                    bfs_queue.emplace(joltage_next_state_plus, nb_buttons_pressed + 1, next_button_pressed);
-                }
+            std::cout << " with " << nb_buttons_pressed << " buttons pressed\n";
+            std::cout << "Buttons pressed: ";
+            for (auto const v : buttons_pressed) {
+                std::cout << v << " ";
+            }
+            std::cout << "\n";
+            if (add_button_pressed(joltage_current_state, nb_buttons_pressed, buttons_pressed)) {
+                break;
             }
 
             for (size_t i = 0; i < buttons.size(); ++i) {
@@ -244,8 +273,6 @@ unsigned long long solve_problem_2(std::ifstream&& stream) {
 
                 if (valid_minus && !visited_states.contains(joltage_next_state_minus)) {
                     visited_states.emplace(joltage_next_state_minus);
-                    auto const sum = std::ranges::fold_left(next_button_pressed, 0, std::plus{});
-                    assert(sum == nb_buttons_pressed - 1);
                     bfs_queue.emplace(joltage_next_state_minus, nb_buttons_pressed - 1, next_button_pressed);
                 }
             }
