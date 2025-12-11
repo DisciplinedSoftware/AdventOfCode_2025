@@ -39,8 +39,9 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
     std::string line;
     while (std::getline(stream, line)) {
         // [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
-        std::vector<bool> lights_final_state;
-        std::vector<std::vector<size_t>> buttons;
+        // TODO: use bitsets instead of vector<bool>
+        std::bitset<32> lights_final_state;
+        std::vector<std::bitset<32>> buttons;
 
         size_t i = 1;
         while (i < line.size()) {
@@ -49,10 +50,10 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
                 break;
             }
             else if (line[i] == '#') {
-                lights_final_state.emplace_back(true);
+                lights_final_state.set(i-1);
             }
             else if (line[i] == '.') {
-                lights_final_state.emplace_back(false);
+                // Noting to do
             }
             ++i;
         }
@@ -63,14 +64,14 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             }
             else if (line[i] == '(') {
                 ++i;
-                std::vector<size_t> button_lights;
+                std::bitset<32> button_lights;
                 while (i < line.size() && line[i] != ')') {
                     size_t light_index = 0;
                     while (i < line.size() && std::isdigit(line[i])) {
                         light_index = light_index * 10 + (line[i] - '0');
                         ++i;
                     }
-                    button_lights.emplace_back(light_index);
+                    button_lights.set(light_index);
                     if (i < line.size() && line[i] == ',') {
                         ++i;
                     }
@@ -81,30 +82,28 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             ++i;
         }
 
+        std::unordered_set<std::bitset<32>> visited_states;
         // Use bfs to find the minimum number of presses to turn on all lights_final_state
-        std::queue<std::tuple<size_t, std::vector<bool>, std::vector<size_t>>> bfs_queue;
-        auto enqueue_buttons = [&](std::vector<bool>const & light_current_state, std::vector<size_t>const & buttons_path) {
-            for (size_t i = 0; i <buttons.size(); ++i) {
-                bfs_queue.emplace(i, light_current_state, buttons_path);
-            }
-        };
+        std::queue<std::pair<std::bitset<32>, unsigned long long>> bfs_queue;
 
-        enqueue_buttons(std::vector<bool>(lights_final_state.size(), false), {});
-        while (true) {
-            auto [button_index, light_current_state, buttons_path] = bfs_queue.front();
+        bfs_queue.emplace(std::bitset<32>{}, 0);
+        visited_states.emplace(std::bitset<32>{});
+        while (!bfs_queue.empty()) {
+            auto [light_current_state, nb_buttons_pressed] = bfs_queue.front();
             bfs_queue.pop();
 
-            for (auto light_index : buttons[button_index]) {
-                light_current_state[light_index] = !light_current_state[light_index];
-            }
-            buttons_path.emplace_back(button_index);
-
             if (light_current_state == lights_final_state) {
-                result += buttons_path.size();
+                result += nb_buttons_pressed;
                 break;
             }
 
-            enqueue_buttons(light_current_state, buttons_path);
+            for (size_t i = 0; i <buttons.size(); ++i) {
+                auto const light_next_state = light_current_state ^ buttons[i];
+                if (!visited_states.contains(light_next_state)) {
+                    visited_states.emplace(light_next_state);
+                    bfs_queue.emplace(light_next_state, nb_buttons_pressed + 1);
+                }
+            }
         }
     }
 
