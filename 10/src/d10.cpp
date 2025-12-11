@@ -172,59 +172,32 @@ unsigned long long solve_problem_2(std::ifstream&& stream) {
             return seed;
         };
 
-        std::string target_str(joltage_final_state.size(), '\0');
-        for (size_t j = 0; j < joltage_final_state.size(); ++j) {
-            target_str[j] = static_cast<char>(joltage_final_state[j]);
-        }
-
-        std::unordered_set<std::string> visited_states;
+        std::unordered_set<std::vector<int>, decltype(hash_fct)> visited_states(0, hash_fct);
         // Use bfs to find the minimum number of presses to turn on all lights_final_state
-        std::queue<std::pair<std::string, int>> bfs_queue;
+        std::queue<std::tuple<std::vector<int>, int, std::vector<int>>> bfs_queue;
 
-        std::string joltage_initial_state(joltage_final_state.size(), '\0');
+        std::vector<int> joltage_initial_state(joltage_final_state.size(), 0);
         std::ranges::sort(buttons, std::greater{}, [](auto const& btn){ return btn.size(); });
         {
+            std::vector<int> buttons_pressed(buttons.size(), 0);
             int nb_buttons_pressed = 0;
             for (size_t i = 0; i < buttons.size(); ++i) {
                 int min_value = std::numeric_limits<int>::max();
                 for (auto const light_index : buttons[i]) {
-                    min_value = std::min(min_value, static_cast<int>(joltage_final_state[light_index]) - joltage_initial_state[light_index]);
+                    min_value = std::min(min_value, joltage_final_state[light_index] - joltage_initial_state[light_index]);
                 }
+                buttons_pressed[i] = min_value;
                 nb_buttons_pressed += min_value;
                 for (auto const light_index : buttons[i]) {
                     joltage_initial_state[light_index] += min_value;
                 }
             }
 
-            bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed);
+            bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed, buttons_pressed);
         }
 
         visited_states.emplace(joltage_initial_state);
         while (!bfs_queue.empty()) {
-            auto [joltage_current_state, nb_buttons_pressed] = bfs_queue.front();
-            bfs_queue.pop();
-
-            if (joltage_current_state == target_str) {
-                result += nb_buttons_pressed;
-                break;
-            }
-
-            for (size_t i = 0; i < buttons.size(); ++i) {
-                std::string joltage_next_state = joltage_current_state;
-                bool valid = true;
-                for (auto const j : buttons[i]) {
-                    ++joltage_next_state[j];
-                    if (joltage_next_state[j] > target_str[j]) {
-                        valid = false;
-                        break;
-                    }
-                }
-                if (valid && !visited_states.contains(joltage_next_state)) {
-                    visited_states.emplace(joltage_next_state);
-                    bfs_queue.emplace(joltage_next_state, nb_buttons_pressed + 1);
-                }
-            }
-        }
             auto [joltage_current_state, nb_buttons_pressed, buttons_pressed] = bfs_queue.front();
             bfs_queue.pop();
 
