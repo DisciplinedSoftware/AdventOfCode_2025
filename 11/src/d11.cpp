@@ -112,62 +112,70 @@ unsigned long long solve_problem_2(std::unordered_multimap<id, id>&& devices) {
     id constexpr dac = {'d', 'a', 'c'};
     id constexpr fft = {'f', 'f', 't'};
 
-    auto visit = [&devices](this auto&& self,
-                            id const& current,
-                            id const& finish,
-                            std::unordered_set<id>& visited,
-                            std::unordered_map<id, unsigned long long>& memoize) -> unsigned long long {
-        if (current == finish) {
-            unsigned long long result = 1ULL;
-            memoize.emplace(current, result);
-            return result;
-        }
+    // Build adjacency multimap from the devices for faster traversal
+    std::unordered_multimap<id, id> adj;
+    for (auto const & p : devices) {
+        adj.emplace(p.first, p.second);
+    }
 
-        auto [begin, end] = devices.equal_range(current);
-        return std::ranges::fold_left(
-            std::ranges::subrange(begin, end),
-            0ULL,
-            [&self, finish, &visited, &memoize](unsigned long long acc, auto const& pair) -> unsigned long long {
-                if (visited.contains(pair.second)) {
-                    return acc;
-                }
-                visited.emplace(pair.second);
-                auto result = acc + self(pair.second, finish, visited, memoize);
-                visited.erase(pair.second);
-                return result;
+    // Detect cycles in the graph. If there are no cycles the number of simple
+    // paths between two nodes can be computed by DP/memoization in O(V+E).
+    enum class Color { WHITE, GRAY, BLACK };
+    std::unordered_map<id, Color> color;
+    auto dfs_cycle = [&](this auto&& self, const id& u) -> bool {
+        color[u] = Color::GRAY;
+        auto [b, e] = adj.equal_range(u);
+        for (auto it = b; it != e; ++it) {
+            auto const & v = it->second;
+            auto itc = color.find(v);
+            if (itc == color.end() || itc->second == Color::WHITE) {
+                if (self(v)) return true;
+            } else if (itc->second == Color::GRAY) {
+                return true; // back-edge found
             }
-        );
+        }
+        color[u] = Color::BLACK;
+        return false;
     };
 
-    std::unordered_map<id, unsigned long long> memoize;
-    std::unordered_set<id> visited;
-    visited.insert(svr);
-    auto svr_dac = visit(svr, dac, visited, memoize);
-    visited.clear();
-    memoize.clear();
+    bool cyclic = false;
+    for (auto const & kv : adj) {
+        auto it = color.find(kv.first);
+        if (it == color.end() || it->second == Color::WHITE) {
+            if (dfs_cycle(kv.first)) { cyclic = true; break; }
+        }
+    }
 
-    visited.insert(svr);
-    auto svr_fft = visit(svr, fft, visited, memoize);
-    visited.clear();
-    memoize.clear();
+    // DP visit for DAGs: memoize count of paths from node -> finish.
+    auto dp_visit = [&adj](auto&& self, id const& current, id const& finish, std::unordered_map<id, unsigned long long>& memoizationMap) -> unsigned long long {
+        if (current == finish) return 1ULL;
+        auto it = memoizationMap.find(current);
+        if (it != memoizationMap.end()) return it->second;
+        unsigned long long acc = 0ULL;
+        auto [b, e] = adj.equal_range(current);
+        for (auto it = b; it != e; ++it) {
+            acc += self(self, it->second, finish, memoizationMap);
+        }
+        memoizationMap.emplace(current, acc);
+        return acc;
+    };
 
-    visited.insert(dac);
-    auto dac_fft = visit(dac, fft, visited, memoize);
-    visited.clear();
-    memoize.clear();
+    if (cyclic) {
+        throw std::runtime_error("Graph contains cycles, cannot compute number of path."s);
+    }
 
-    visited.insert(fft);
-    auto fft_dac = visit(fft, dac, visited, memoize);
-    visited.clear();
-    memoize.clear();
-
-    visited.insert(fft);
-    auto fft_out = visit(fft, out, visited, memoize);
-    visited.clear();
-    memoize.clear();
-
-    visited.insert(dac);
-    auto dac_out = visit(dac, out, visited, memoize);
+    std::unordered_map<id, unsigned long long> memoizationMap;
+    unsigned long long svr_dac = dp_visit(dp_visit, svr, dac, memoizationMap);
+    memoizationMap.clear();
+    unsigned long long svr_fft = dp_visit(dp_visit, svr, fft, memoizationMap);
+    memoizationMap.clear();
+    unsigned long long dac_fft = dp_visit(dp_visit, dac, fft, memoizationMap);
+    memoizationMap.clear();
+    unsigned long long fft_dac = dp_visit(dp_visit, fft, dac, memoizationMap);
+    memoizationMap.clear();
+    unsigned long long fft_out = dp_visit(dp_visit, fft, out, memoizationMap);
+    memoizationMap.clear();
+    unsigned long long dac_out = dp_visit(dp_visit, dac, out, memoizationMap);
 
     return svr_dac * dac_fft * fft_out + svr_fft * fft_dac * dac_out;
 }
