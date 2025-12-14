@@ -22,6 +22,9 @@
 #include <utility>
 #include <vector>
 
+#include <z3++.h>
+
+
 using namespace std::string_literals;
 
 std::ifstream open(std::string const & filename) {
@@ -118,164 +121,98 @@ unsigned long long solve_problem_1(std::string const& filename) {
 unsigned long long solve_problem_2(std::ifstream&& stream) {
     unsigned long long result = 0;
 
-    unsigned int counter = 0;
-
     std::string line;
     while (std::getline(stream, line)) {
-        std::cout << "Processing line " << counter++ << "\n";
+        if (line.empty()) continue;
 
-        // [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
-        std::vector<int> joltage_final_state;
         std::vector<std::vector<int>> buttons;
+        std::vector<unsigned long long> target;
 
-        size_t i = 1;
-        while (i < line.size()) {
-            if (line[i] == '{') {
+        // parse line: collect all '(' groups as buttons and the '{' group as target
+        for (size_t i = 0; i < line.size(); ++i) {
+            if (line[i] == '(') {
+                ++i;
+                std::vector<int> btn;
+                while (i < line.size() && line[i] != ')') {
+                    if (std::isdigit(line[i])) {
+                        int val = 0;
+                        while (i < line.size() && std::isdigit(line[i])) {
+                            val = val * 10 + (line[i] - '0');
+                            ++i;
+                        }
+                        btn.push_back(val);
+                    } else {
+                        ++i;
+                    }
+                }
+                buttons.emplace_back(std::move(btn));
+            } else if (line[i] == '{') {
                 ++i;
                 while (i < line.size() && line[i] != '}') {
-                    size_t light_index = 0;
-                    while (i < line.size() && std::isdigit(line[i])) {
-                        light_index = light_index * 10 + (line[i] - '0');
-                        ++i;
-                    }
-                    joltage_final_state.emplace_back(light_index);
-                    if (i < line.size() && line[i] == ',') {
-                        ++i;
-                    }
-                }
-                ++i; // skip the closing '}'
-                break;
-            }
-            else if (line[i] == '(') {
-                ++i;
-                std::vector<int> button_joltages;
-                while (i < line.size() && line[i] != ')') {
-                    size_t light_index = 0;
-                    while (i < line.size() && std::isdigit(line[i])) {
-                        light_index = light_index * 10 + (line[i] - '0');
-                        ++i;
-                    }
-                    button_joltages.emplace_back(light_index);
-                    if (i < line.size() && line[i] == ',') {
-                        ++i;
-                    }
-                }
-                buttons.emplace_back(button_joltages);
-            }
-
-            ++i;
-        }
-
-        auto const max_joltage = *std::max_element(joltage_final_state.begin(), joltage_final_state.end());
-        auto const bump = max_joltage + 1;
-        auto hash_fct = [bump](std::vector<int> const& vec) {
-            size_t seed = 0;
-            for(auto const i : vec) {
-                seed += seed * bump + i;
-            }
-            return seed;
-        };
-
-        std::unordered_set<std::vector<int>, decltype(hash_fct)> visited_states(0, hash_fct);
-        std::queue<std::tuple<std::vector<int>, int, std::vector<int>>> bfs_queue;
-
-        std::vector<int> joltage_initial_state(joltage_final_state.size(), 0);
-        std::ranges::sort(buttons, std::greater{}, [](auto const& btn){ return btn.size(); });
-        {
-            std::vector<int> buttons_pressed(buttons.size(), 0);
-            int nb_buttons_pressed = 0;
-            for (size_t i = 0; i < buttons.size(); ++i) {
-                int min_value = std::numeric_limits<int>::max();
-                for (auto const light_index : buttons[i]) {
-                    min_value = std::min(min_value, joltage_final_state[light_index] - joltage_initial_state[light_index]);
-                }
-                buttons_pressed[i] = min_value;
-                nb_buttons_pressed += min_value;
-                for (auto const light_index : buttons[i]) {
-                    joltage_initial_state[light_index] += min_value;
-                }
-            }
-
-            bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed, buttons_pressed);
-        }
-
-        std::unordered_set<std::vector<int>, decltype(hash_fct)> visited_states_plus(0, hash_fct);
-        auto add_button_pressed = [&hash_fct, &result, &buttons, &joltage_final_state, &visited_states_plus](std::vector<int> const& joltage_initial_state, int nb_buttons_pressed, std::vector<int> const& buttons_pressed) {
-            std::queue<std::tuple<std::vector<int>, int, std::vector<int>>> bfs_queue;
-            bfs_queue.emplace(joltage_initial_state, nb_buttons_pressed, buttons_pressed);
-            visited_states_plus.emplace(joltage_initial_state);
-
-            while (!bfs_queue.empty()) {
-                auto [joltage_current_state, nb_buttons_pressed, buttons_pressed] = bfs_queue.front();
-                bfs_queue.pop();
-
-                if (joltage_current_state == joltage_final_state) {
-                    result += nb_buttons_pressed;
-                    return true;
-                }
-
-                for (size_t i = 0; i < buttons.size(); ++i) {
-                    auto next_button_pressed = buttons_pressed;
-                    next_button_pressed[i] += 1;
-                    auto joltage_next_state_plus = joltage_current_state;
-                    bool valid_plus = true;
-                    for (auto const j : buttons[i]) {
-                        joltage_next_state_plus[j] += 1;
-                        if (joltage_next_state_plus[j] > joltage_final_state[j]) {
-                            valid_plus = false;
+                    if (std::isdigit(line[i])) {
+                        unsigned long long val = 0ULL;
+                        while (i < line.size() && std::isdigit(line[i])) {
+                            val = val * 10ULL + static_cast<unsigned long long>(line[i] - '0');
+                            ++i;
                         }
-                    }
-
-                    if (valid_plus && !visited_states_plus.contains(joltage_next_state_plus)) {
-                        visited_states_plus.emplace(joltage_next_state_plus);
-                        bfs_queue.emplace(joltage_next_state_plus, nb_buttons_pressed + 1, next_button_pressed);
+                        target.push_back(val);
+                    } else {
+                        ++i;
                     }
                 }
             }
+        }
 
-            return false;
-        };
+        using namespace z3;
+        context ctx;
+        optimize opt(ctx);
 
-        visited_states.emplace(joltage_initial_state);
-        while (!bfs_queue.empty()) {
-            auto [joltage_current_state, nb_buttons_pressed, buttons_pressed] = bfs_queue.front();
-            bfs_queue.pop();
+        unsigned var_count = static_cast<unsigned>(buttons.size());
+        std::vector<expr> xs; xs.reserve(var_count);
+        for (unsigned v = 0; v < var_count; ++v) {
+            xs.emplace_back(ctx.int_const(("x" + std::to_string(v)).c_str()));
+            opt.add(xs.back() >= 0);
+        }
 
-            std::cout << "Current state: ";
-            for (auto const v : joltage_current_state) {
-                std::cout << v << " ";
-            }
-            std::cout << " with " << nb_buttons_pressed << " buttons pressed\n";
-            std::cout << "Buttons pressed: ";
-            for (auto const v : buttons_pressed) {
-                std::cout << v << " ";
-            }
-            std::cout << "\n";
-            if (add_button_pressed(joltage_current_state, nb_buttons_pressed, buttons_pressed)) {
-                break;
-            }
+        // sum upper bound to help the optimizer
+        unsigned long long sum_target = 0ULL;
+        for (auto t : target) sum_target += t;
+        expr sum_expr = ctx.int_val(0);
+        for (unsigned v = 0; v < var_count; ++v) sum_expr = sum_expr + xs[v];
+        opt.add(sum_expr <= ctx.int_val(static_cast<int64_t>(sum_target)));
 
-            for (size_t i = 0; i < buttons.size(); ++i) {
-                if (buttons_pressed[i] == 0) {
-                    continue;
-                }
-
-                auto next_button_pressed = buttons_pressed;
-                next_button_pressed[i] -= 1;
-                auto joltage_next_state_minus = joltage_current_state;
-                bool valid_minus = true;
-                for (auto const j : buttons[i]) {
-                    joltage_next_state_minus[j] -= 1;
-                    if (joltage_next_state_minus[j] < 0) {
-                        valid_minus = false;
+        // per-row equality constraints
+        for (size_t r = 0; r < target.size(); ++r) {
+            expr row_sum = ctx.int_val(0);
+            for (unsigned c = 0; c < var_count; ++c) {
+                for (int idx : buttons[c]) {
+                    if (static_cast<size_t>(idx) == r) {
+                        row_sum = row_sum + xs[c];
+                        break;
                     }
                 }
+            }
+            opt.add(row_sum == ctx.int_val(static_cast<int64_t>(target[r])));
+        }
 
-                if (valid_minus && !visited_states.contains(joltage_next_state_minus)) {
-                    visited_states.emplace(joltage_next_state_minus);
-                    bfs_queue.emplace(joltage_next_state_minus, nb_buttons_pressed - 1, next_button_pressed);
+        opt.minimize(sum_expr);
+        auto s = opt.check();
+        if (s == z3::sat) {
+            model m = opt.get_model();
+            unsigned long long total = 0ULL;
+            for (unsigned v = 0; v < var_count; ++v) {
+                expr val = m.eval(xs[v], true);
+                if (val.is_numeral()) {
+                    std::string num = Z3_get_numeral_string(ctx, val);
+                    long long iv = 0;
+                    try { iv = std::stoll(num); } catch (...) { iv = 0; }
+                    if (iv < 0) iv = 0;
+                    total += static_cast<unsigned long long>(iv);
                 }
             }
+            result += total;
+        } else {
+            throw std::runtime_error("Z3 could not find a solution for line: " + line);
         }
     }
 
