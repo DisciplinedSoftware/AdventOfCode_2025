@@ -179,7 +179,7 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
         //     std::cout << "----" << std::endl;
         // };
 
-        auto solve = [&area_rows, &counts, &shapes, &shape_order, length, width, &can_place_shape, &print_area](this auto&& self) -> bool {
+        auto solve = [&area_rows, &counts, &shapes, &shape_order, length, width, &can_place_shape](this auto&& self) -> bool {
 
             if (std::ranges::all_of(counts, [](auto c){ return c == 0; })) {
                 return true;
