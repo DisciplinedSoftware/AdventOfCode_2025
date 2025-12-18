@@ -180,43 +180,17 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
         // };
 
         auto solve = [&area_rows, &counts, &shapes, &shape_order, length, width, &can_place_shape](this auto&& self) -> bool {
+            auto const found = std::ranges::find_if(shape_order, [&counts](size_t shape_id) {
+                return counts[shape_id] != 0;
+            });
 
-            if (std::ranges::all_of(counts, [](auto c){ return c == 0; })) {
+            if (found == shape_order.cend()) {
+                // All shapes placed
                 return true;
             }
 
-            size_t best_shape = std::numeric_limits<size_t>::max();
-            size_t best_options = std::numeric_limits<size_t>::max();
-            for (size_t shape_id :shape_order) {
-                if (counts[shape_id] == 0) {
-                    continue;
-                }
-
-                size_t const options = [&shapes, &area_rows, length, width, shape_id, &can_place_shape]() {
-                    size_t options = 0;
-                    for (auto const & s : shapes[shape_id]) {
-                        for (size_t by = 0; by <= length - shape_size; ++by) {
-                            for (size_t bx = 0; bx <= width - shape_size; ++bx) {
-                                if (can_place_shape(s, bx, by)) {
-                                    ++options;
-                                }
-                            }
-                        }
-                    }
-                    return options;
-                }();
-
-                if (options == 0) {
-                    return false;
-                }
-                if (options < best_options) {
-                    best_options = options;
-                    best_shape = shape_id;
-                }
-            }
-
-            size_t const shape_id = best_shape;
-            for (auto const& s : shapes[shape_id]) {
+            size_t const next_shape_id = *found;
+            for (auto const& s : shapes[next_shape_id]) {
                 for (size_t by = 0; by <= length - shape_size; ++by) {
                     for (size_t bx = 0; bx <= width - shape_size; ++bx) {
                         if (!can_place_shape(s, bx, by)) {
@@ -226,13 +200,13 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
                         for (auto const& [i, row] : std::views::enumerate(s)) {
                             area_rows[by + i] |= (row.to_ullong() << bx);
                         }
-                        --counts[shape_id];
+                        --counts[next_shape_id];
 
                         if (self()) {
                             return true;
                         }
 
-                        ++counts[shape_id];
+                        ++counts[next_shape_id];
                         for (auto const& [i, row] : std::views::enumerate(s)) {
                             area_rows[by + i] ^= (row.to_ullong() << bx);
                         }
