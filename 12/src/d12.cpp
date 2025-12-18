@@ -18,6 +18,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <limits>
+#include <cstdint>
 
 using namespace std::string_literals;
 
@@ -50,11 +52,13 @@ namespace std {
     };
 }
 
+constexpr size_t nb_shapes = 6;
+
 unsigned long long solve_problem_1(std::ifstream&& stream) {
     unsigned long long result = 0;
 
     // Parse shapes
-    std::array<std::vector<shape>, 6> shapes{};
+    std::array<std::vector<shape>, nb_shapes> shapes{};
 
     for (size_t shape_index = 0; shape_index < shapes.size(); ++shape_index) {
         std::string line;
@@ -73,7 +77,7 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
         }
 
         std::unordered_set<shape> current_shapes;
-        current_shapes.reserve(4*4*4);
+        current_shapes.reserve(4*3);
 
         // Generate rotations and mirrorings
         auto add_and_rotate_shape = [&current_shapes](shape const& s) {
@@ -120,7 +124,7 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
         size_t const width = std::stoul(line.substr(0, x_separator));
         auto const colon_separator = line.find(':', x_separator);
         size_t const length = std::stoul(line.substr(x_separator + 1, colon_separator - x_separator - 1 ));
-        std::array<size_t, 6> counts;
+        std::array<size_t, nb_shapes> counts;
         auto previous_separator = colon_separator + 2;
         for (size_t s = 0; s < shapes.size(); ++s) {
             auto next_space = line.find(' ', previous_separator);
@@ -131,86 +135,163 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             previous_separator = next_space + 1;
         }
 
-        // The goal is to check if all shapes can be fitted into the area
-        // of size width x length given the counts available for each shape.
-        // A backtracking approach should be sufficient given the constraints.
-        // A shape occupies all cells that are true in its 3x3 grid.
-        std::vector<std::vector<bool>> area(length, std::vector<bool>(width, false));
-        auto backtracking = [&shapes, &counts, &area, &result] (this auto&& self) -> bool {
-            // for (size_t j = 0; j < area.size(); ++j) {
-            //     for (size_t i = 0; i < area[0].size(); ++i) {
-            //         if (area[j][i]) {
-            //             std::cout << '#';
-            //         }
-            //         else {
-            //             std::cout << '.';
-            //         }
-            //     }
-            //     std::cout << std::endl;
-            // }
-            // std::cout << "----" << std::endl;
+        // Build variant coordinates once
+        std::array<std::vector<std::vector<std::pair<size_t, size_t>>>, nb_shapes> variant_coords{};
+        std::array<size_t, nb_shapes> shape_cells{};
+        for (size_t s = 0; s < shapes.size(); ++s) {
+            variant_coords[s].reserve(shapes[s].size());
+            for (auto const & var : shapes[s]) {
+                std::vector<std::pair<size_t, size_t>> coords;
+                for (size_t i = 0; i < shape_size; ++i) {
+                    for (size_t j = 0; j < shape_size; ++j) {
+                        if (var[i][j]) {
+                            coords.emplace_back(i, j);
+                        }
+                    }
+                }
+                assert(!coords.empty());
 
+                variant_coords[s].push_back(std::move(coords));
+            }
 
-            if (std::ranges::all_of(counts, [](auto count) { return count == 0; })) {
-                // All shapes placed
+            assert(!variant_coords[s].empty());
+            shape_cells[s] = variant_coords[s].front().size();
+        }
+
+        // Early rejection by cell count
+        size_t const total_required = std::ranges::fold_left(std::views::zip(counts, shape_cells), 0ull, [&](size_t acc, auto s) {
+            return acc + std::get<0>(s) * std::get<1>(s);
+        });
+
+        if (total_required > width * length) {
+            //std::cout << "Impossible by cell-count: " << total_required << " > " << (width * length) << std::endl;
+            continue;
+        }
+
+        // Order shape indices by descending cell count (helps prune)
+        std::vector<size_t> shape_order(shapes.size());
+        std::iota(shape_order.begin(), shape_order.end(), 0);
+        std::sort(shape_order.begin(), shape_order.end(),
+            [&shape_cells](size_t a, size_t b) {
+                return shape_cells[a] > shape_cells[b];
+            });
+
+        assert(width <= 64);
+
+        using RowMask = uint64_t;
+        struct VariantMask {
+            std::vector<std::pair<size_t, RowMask>> rows;
+            size_t max_rx;
+            size_t max_ry;
+        };
+
+        std::array<std::vector<VariantMask>, nb_shapes> variant_masks{};
+        for (size_t s = 0; s < shapes.size(); ++s) {
+            for (auto const & coords : variant_coords[s]) {
+                if (coords.empty()) {
+                    continue;
+                }
+                size_t min_ry = std::numeric_limits<size_t>::max();
+                size_t min_rx = std::numeric_limits<size_t>::max();
+                size_t max_ry = std::numeric_limits<size_t>::min();
+                size_t max_rx = std::numeric_limits<size_t>::min();
+                for (auto const & c : coords) {
+                    min_ry = std::min(min_ry, c.first);
+                    min_rx = std::min(min_rx, c.second);
+                    max_ry = std::max(max_ry, c.first);
+                    max_rx = std::max(max_rx, c.second);
+                }
+                std::map<size_t, RowMask> m;
+                for (auto const & c : coords) {
+                    size_t ry = c.first - min_ry;
+                    size_t rx = c.second - min_rx;
+                    m[ry] |= (RowMask(1) << rx);
+                }
+                std::vector<std::pair<size_t, RowMask>> rows;
+                rows.reserve(m.size());
+                for (auto &p : m) {
+                    rows.push_back(p);
+                }
+                VariantMask vm;
+                vm.rows = std::move(rows);
+                vm.max_rx = max_rx - min_rx;
+                vm.max_ry = max_ry - min_ry;
+                variant_masks[s].push_back(std::move(vm));
+            }
+        }
+
+        std::vector<RowMask> area_rows(length, 0);
+
+        auto solve = [&area_rows, &counts, &variant_masks, &shape_order, length, width](this auto&& self) -> bool {
+            if (std::ranges::all_of(counts, [](auto c){ return c == 0; })) {
                 return true;
             }
 
-            // Try to place each shape at the current position
-            for (size_t shape_index = 0; shape_index < shapes.size(); ++shape_index) {
-                if (counts[shape_index] == 0) {
-                    continue; // No more shapes of this type available
+            size_t best_shape = std::numeric_limits<size_t>::max();
+            size_t best_options = std::numeric_limits<size_t>::max();
+            for (size_t shape_id :shape_order) {
+                if (counts[shape_id] == 0) {
+                    continue;
                 }
 
-                auto place_shape = [&shapes, &counts, &area, &result, &self] (size_t shape_index, size_t x, size_t y) -> bool {
-                    for (shape const& s : shapes[shape_index]) {
-                        // Check if shape can be placed
-                        auto can_place = [&area](shape const& s, size_t x, size_t y) -> bool {
-                            for (size_t i = 0; i < shape_size; ++i) {
-                                for (size_t j = 0; j < shape_size; ++j) {
-                                    if (s[i][j]) {
-                                        size_t ay = y + i;
-                                        size_t ax = x + j;
-                                        if (ay >= area.size() || ax >= area[0].size() || area[ay][ax]) {
-                                            return false;
-                                        }
-                                    }
+                size_t const options = [&variant_masks, &area_rows, length, width, shape_id]() {
+                    size_t options = 0;
+                    for (auto const & vm : variant_masks[shape_id]) {
+                        size_t max_ry = vm.max_ry;
+                        size_t max_rx = vm.max_rx;
+                        for (size_t by = 0; by <= length - 1 - max_ry; ++by) {
+                            for (size_t bx = 0; bx <= width - 1 - max_rx; ++bx) {
+                                bool const ok = std::ranges::all_of(vm.rows, [&area_rows, bx, by](auto const & pr) {
+                                    size_t const yy = by + pr.first;
+                                    RowMask const shifted = (pr.second << bx);
+                                    return (area_rows[yy] & shifted) == 0;
+                                });
+                                if (ok) {
+                                    ++options;
                                 }
                             }
-                            return true;
-                        };
-
-                        if (can_place(s, x, y)) {
-                            auto set_shape = [&area](shape const& s, size_t x, size_t y, bool value) {
-                                for (size_t i = 0; i < shape_size; ++i) {
-                                    for (size_t j = 0; j < shape_size; ++j) {
-                                        if (s[i][j]) {
-                                            area[y + i][x + j] = value;
-                                        }
-                                    }
-                                }
-                            };
-
-                            set_shape(s, x, y, true);
-                            --counts[shape_index];
-
-                            // Recurse
-                            if (self()) {
-                                return true;
-                            }
-
-                            set_shape(s, x, y, false);
-                            ++counts[shape_index];
                         }
                     }
+                    return options;
+                }();
 
+                if (options == 0) {
                     return false;
-                };
+                }
+                if (options < best_options) {
+                    best_options = options;
+                    best_shape = shape_id;
+                }
+            }
 
-                for (size_t j = 0; j < area.size(); ++j) {
-                    for (size_t i = 0; i < area[0].size(); ++i) {
-                        if( place_shape(shape_index, i, j) ) {
+            size_t const shape_id = best_shape;
+            for (auto const & vm : variant_masks[shape_id]) {
+                size_t const max_ry = vm.max_ry;
+                size_t const max_rx = vm.max_rx;
+                for (size_t by = 0; by <= length - 1 - max_ry; ++by) {
+                    for (size_t bx = 0; bx <= width - 1 - max_rx; ++bx) {
+                        bool ok = true;
+                        for (auto const & pr : vm.rows) {
+                            size_t yy = by + pr.first;
+                            RowMask shifted = (pr.second << bx);
+                            if ((area_rows[yy] & shifted) != 0) {
+                                ok = false;
+                                break;
+                            }
+                        }
+                        if (!ok) {
+                            continue;
+                        }
+                        for (auto const & pr : vm.rows) {
+                            area_rows[by + pr.first] |= (pr.second << bx);
+                        }
+                        --counts[shape_id];
+                        if (self()) {
                             return true;
+                        }
+                        ++counts[shape_id];
+                        for (auto const & pr : vm.rows) {
+                            area_rows[by + pr.first] ^= (pr.second << bx);
                         }
                     }
                 }
@@ -219,9 +300,8 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             return false;
         };
 
-        std::cout << "Attempting to fill area " << width << "x" << length << std::endl;
-
-        if (backtracking()) {
+        // std::cout << "Attempting to fill area " << width << "x" << length << std::endl;
+        if (solve()) {
             ++result;
         }
     }
@@ -231,22 +311,6 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
 
 unsigned long long solve_problem_1(std::string const& filename) {
     return solve_problem_1(open(filename));
-}
-
-unsigned long long solve_problem_2(std::ifstream&& stream) {
-    unsigned long long result = 0;
-
-    std::string line;
-    while (std::getline(stream, line)) {
-        std::istringstream line_stream(line);
-        
-    }
-
-    return result;
-}
-
-unsigned long long solve_problem_2(std::string const& filename) {
-    return solve_problem_2(open(filename));
 }
 
 void expect(auto const & result, auto const & reference) {
@@ -260,8 +324,5 @@ void expect(auto const & result, auto const & reference) {
 
 int main() {
     expect(solve_problem_1("example"s), 2);
-    // std::cout << solve_problem_1("first"s) << std::endl;
-
-    // expect(solve_problem_2("example"s), );
-    // std::cout << solve_problem_2("first"s) << std::endl;
+    std::cout << solve_problem_1("first"s) << std::endl;
 }
