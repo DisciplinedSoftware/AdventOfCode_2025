@@ -35,7 +35,7 @@ std::ifstream open(std::string const & filename) {
 }
 
 size_t constexpr shape_size = 3;
-using shape = std::array<std::array<bool, shape_size>, shape_size>;
+using shape = std::array<std::bitset<shape_size>, shape_size>;
 
 namespace std {
     template <>
@@ -43,9 +43,7 @@ namespace std {
         std::size_t operator()(const shape& s) const noexcept {
             size_t hash = 0;
             for (size_t i = 0; i < shape_size; ++i) {
-                for (size_t j = 0; j < shape_size; ++j) {
-                    hash = (hash << 1) + static_cast<size_t>(s[i][j]);
-                }
+                hash = (hash << shape_size) + s[i].to_ullong();
             }
             return hash;
         }
@@ -59,6 +57,7 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
 
     // Parse shapes
     std::array<std::vector<shape>, nb_shapes> shapes{};
+    std::array<size_t, nb_shapes> shape_cell_counts{};
 
     for (size_t shape_index = 0; shape_index < shapes.size(); ++shape_index) {
         std::string line;
@@ -74,6 +73,7 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             for (size_t j = 0; j < shape_size; ++j) {
                 current_shape[i][j] = (line[j] == '#');
             }
+            shape_cell_counts[shape_index] += current_shape[i].count();
         }
 
         std::unordered_set<shape> current_shapes;
@@ -135,31 +135,8 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             previous_separator = next_space + 1;
         }
 
-        // Build variant coordinates once
-        std::array<std::vector<std::vector<std::pair<size_t, size_t>>>, nb_shapes> variant_coords{};
-        std::array<size_t, nb_shapes> shape_cells{};
-        for (size_t s = 0; s < shapes.size(); ++s) {
-            variant_coords[s].reserve(shapes[s].size());
-            for (auto const & var : shapes[s]) {
-                std::vector<std::pair<size_t, size_t>> coords;
-                for (size_t i = 0; i < shape_size; ++i) {
-                    for (size_t j = 0; j < shape_size; ++j) {
-                        if (var[i][j]) {
-                            coords.emplace_back(i, j);
-                        }
-                    }
-                }
-                assert(!coords.empty());
-
-                variant_coords[s].push_back(std::move(coords));
-            }
-
-            assert(!variant_coords[s].empty());
-            shape_cells[s] = variant_coords[s].front().size();
-        }
-
         // Early rejection by cell count
-        size_t const total_required = std::ranges::fold_left(std::views::zip(counts, shape_cells), 0ull, [&](size_t acc, auto s) {
+        size_t const total_required = std::ranges::fold_left(std::views::zip(counts, shape_cell_counts), 0ull, [&](size_t acc, auto s) {
             return acc + std::get<0>(s) * std::get<1>(s);
         });
 
@@ -168,61 +145,42 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             continue;
         }
 
+        assert(width <= 64);
+        std::vector<std::bitset<64>> area_rows(length, 0);
+
         // Order shape indices by descending cell count (helps prune)
-        std::vector<size_t> shape_order(shapes.size());
-        std::iota(shape_order.begin(), shape_order.end(), 0);
-        std::sort(shape_order.begin(), shape_order.end(),
-            [&shape_cells](size_t a, size_t b) {
-                return shape_cells[a] > shape_cells[b];
+        std::array<size_t, nb_shapes> shape_order{};
+        std::ranges::iota(shape_order, 0);
+        std::ranges::sort(shape_order, [&shape_cell_counts](size_t a, size_t b) {
+                return shape_cell_counts[a] > shape_cell_counts[b];
             });
 
-        assert(width <= 64);
-
-        using RowMask = uint64_t;
-        struct VariantMask {
-            std::vector<std::pair<size_t, RowMask>> rows;
-            size_t max_rx;
-            size_t max_ry;
+        auto can_place_shape = [&area_rows, width](shape const& s, size_t bx, size_t by) -> bool {
+            return std::ranges::all_of(std::views::enumerate(s), [&area_rows, bx, by](auto const & pr) {
+                    auto const [i, row] = pr;
+                    size_t const yy = by + i;
+                    auto const shifted = (row.to_ullong() << bx);
+                    return (area_rows[yy].to_ullong() & shifted) == 0;
+                });
         };
 
-        std::array<std::vector<VariantMask>, nb_shapes> variant_masks{};
-        for (size_t s = 0; s < shapes.size(); ++s) {
-            for (auto const & coords : variant_coords[s]) {
-                if (coords.empty()) {
-                    continue;
-                }
-                size_t min_ry = std::numeric_limits<size_t>::max();
-                size_t min_rx = std::numeric_limits<size_t>::max();
-                size_t max_ry = std::numeric_limits<size_t>::min();
-                size_t max_rx = std::numeric_limits<size_t>::min();
-                for (auto const & c : coords) {
-                    min_ry = std::min(min_ry, c.first);
-                    min_rx = std::min(min_rx, c.second);
-                    max_ry = std::max(max_ry, c.first);
-                    max_rx = std::max(max_rx, c.second);
-                }
-                std::map<size_t, RowMask> m;
-                for (auto const & c : coords) {
-                    size_t ry = c.first - min_ry;
-                    size_t rx = c.second - min_rx;
-                    m[ry] |= (RowMask(1) << rx);
-                }
-                std::vector<std::pair<size_t, RowMask>> rows;
-                rows.reserve(m.size());
-                for (auto &p : m) {
-                    rows.push_back(p);
-                }
-                VariantMask vm;
-                vm.rows = std::move(rows);
-                vm.max_rx = max_rx - min_rx;
-                vm.max_ry = max_ry - min_ry;
-                variant_masks[s].push_back(std::move(vm));
-            }
-        }
+        // auto print_area = [&area_rows, length, width]() {
+        //     for (size_t j = 0; j < length; ++j) {
+        //         for (size_t i = 0; i < width; ++i) {
+        //             if (area_rows[j][i]) {
+        //                 std::cout << '#';
+        //             }
+        //             else {
+        //                 std::cout << '.';
+        //             }
+        //         }
+        //         std::cout << std::endl;
+        //     }
+        //     std::cout << "----" << std::endl;
+        // };
 
-        std::vector<RowMask> area_rows(length, 0);
+        auto solve = [&area_rows, &counts, &shapes, &shape_order, length, width, &can_place_shape, &print_area](this auto&& self) -> bool {
 
-        auto solve = [&area_rows, &counts, &variant_masks, &shape_order, length, width](this auto&& self) -> bool {
             if (std::ranges::all_of(counts, [](auto c){ return c == 0; })) {
                 return true;
             }
@@ -234,19 +192,12 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
                     continue;
                 }
 
-                size_t const options = [&variant_masks, &area_rows, length, width, shape_id]() {
+                size_t const options = [&shapes, &area_rows, length, width, shape_id, &can_place_shape]() {
                     size_t options = 0;
-                    for (auto const & vm : variant_masks[shape_id]) {
-                        size_t max_ry = vm.max_ry;
-                        size_t max_rx = vm.max_rx;
-                        for (size_t by = 0; by <= length - 1 - max_ry; ++by) {
-                            for (size_t bx = 0; bx <= width - 1 - max_rx; ++bx) {
-                                bool const ok = std::ranges::all_of(vm.rows, [&area_rows, bx, by](auto const & pr) {
-                                    size_t const yy = by + pr.first;
-                                    RowMask const shifted = (pr.second << bx);
-                                    return (area_rows[yy] & shifted) == 0;
-                                });
-                                if (ok) {
+                    for (auto const & s : shapes[shape_id]) {
+                        for (size_t by = 0; by <= length - shape_size; ++by) {
+                            for (size_t bx = 0; bx <= width - shape_size; ++bx) {
+                                if (can_place_shape(s, bx, by)) {
                                     ++options;
                                 }
                             }
@@ -265,33 +216,25 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
             }
 
             size_t const shape_id = best_shape;
-            for (auto const & vm : variant_masks[shape_id]) {
-                size_t const max_ry = vm.max_ry;
-                size_t const max_rx = vm.max_rx;
-                for (size_t by = 0; by <= length - 1 - max_ry; ++by) {
-                    for (size_t bx = 0; bx <= width - 1 - max_rx; ++bx) {
-                        bool ok = true;
-                        for (auto const & pr : vm.rows) {
-                            size_t yy = by + pr.first;
-                            RowMask shifted = (pr.second << bx);
-                            if ((area_rows[yy] & shifted) != 0) {
-                                ok = false;
-                                break;
-                            }
-                        }
-                        if (!ok) {
+            for (auto const& s : shapes[shape_id]) {
+                for (size_t by = 0; by <= length - shape_size; ++by) {
+                    for (size_t bx = 0; bx <= width - shape_size; ++bx) {
+                        if (!can_place_shape(s, bx, by)) {
                             continue;
                         }
-                        for (auto const & pr : vm.rows) {
-                            area_rows[by + pr.first] |= (pr.second << bx);
+
+                        for (auto const& [i, row] : std::views::enumerate(s)) {
+                            area_rows[by + i] |= (row.to_ullong() << bx);
                         }
                         --counts[shape_id];
+
                         if (self()) {
                             return true;
                         }
+
                         ++counts[shape_id];
-                        for (auto const & pr : vm.rows) {
-                            area_rows[by + pr.first] ^= (pr.second << bx);
+                        for (auto const& [i, row] : std::views::enumerate(s)) {
+                            area_rows[by + i] ^= (row.to_ullong() << bx);
                         }
                     }
                 }
