@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -23,6 +24,17 @@ inline unsigned long long to_value(char c) {
     return static_cast<unsigned long long>(c - '0');
 }
 
+std::generator<std::string> parse_input(std::string const& filename) {
+    std::filesystem::path const base = "./03/input"s;
+    auto const filepath = base / filename;
+
+    std::ifstream stream(filepath);
+    std::string line;
+    while (std::getline(stream, line) || !line.empty()) {
+        co_yield line;
+    }
+}
+
 unsigned long long get_max_joltage(std::string const& str, unsigned long long nb_batteries) {
     unsigned long long max_joltage = 0;
     auto begin = str.begin();
@@ -36,18 +48,9 @@ unsigned long long get_max_joltage(std::string const& str, unsigned long long nb
 }
 
 unsigned long long get_joltage(std::string const& filename, unsigned long long nb_batteries) {
-    std::filesystem::path const base = "./03/input"s;
-    auto const filepath = base / filename;
-
-    unsigned long long sum = 0;
-
-    std::ifstream stream(filepath);
-    std::string line;
-    while (std::getline(stream, line) || !line.empty()) {
-        sum += get_max_joltage(line, nb_batteries);
-    }
-
-    return sum;
+    return std::ranges::fold_left(parse_input(filename), 0ull, [nb_batteries](auto const& sum, auto const& line) {
+        return sum + get_max_joltage(line, nb_batteries);
+    });
 }
 
 
