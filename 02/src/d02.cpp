@@ -92,7 +92,9 @@ unsigned long long count_invalid_id(
     // iterate and accumulate unseen values within range
     while (value <= upper_bound) {
         auto insert_result = seen.insert(value);
-        if (insert_result.second) result += value; // only add when newly inserted
+        if (insert_result.second) {
+            result += value; // only add when newly inserted
+        }
         ++half_value;
         value = make_repeated_value(half_value, nb_repetitions);
     }
