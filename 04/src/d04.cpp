@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -19,45 +20,45 @@
 
 using namespace std::string_literals;
 
-void process_line(std::string const& line, std::vector<std::vector<bool>>& grid) {
-    auto& row = grid.back();
-    for (size_t i = 0, col = 1; i < line.length(); ++i, ++col) {
-        auto const c = line[i];
+std::vector<bool> process_line(std::string const& line) {
+    std::vector<bool> row(line.length() + 2, false);
+    for (auto [col, c] : std::views::enumerate(line)) {
         if (c == '@') {
-            row[col] = true;
+            row[col+1] = true;
         }
+    }
+
+    return row;
+}
+
+std::generator<std::vector<bool>> read_input(std::string const& filename) {
+    std::filesystem::path const base = "./04/input"s;
+    auto const filepath = base / filename;
+
+    std::ifstream stream(filepath);
+    std::string line;
+
+    while (std::getline(stream, line) && !line.empty()) {
+        co_yield process_line(line);
     }
 }
 
 unsigned long long count_removed_roll(std::string const& filename, unsigned int nb_tries) {
-    std::filesystem::path const base = "./04/input"s;
-    auto const filepath = base / filename;
-
     std::vector<std::vector<bool>> grid;
+    grid.emplace_back();    // Add a top border
 
-    std::ifstream stream(filepath);
-    std::string line;
-    if (!std::getline(stream, line) || line.empty()) {
-        throw std::runtime_error("Unable to read line from file: " + filepath.string());
+    for (auto const& row : read_input(filename)) {
+        grid.emplace_back(row);
     }
 
-    size_t width = line.length();
-
-    grid.emplace_back(std::vector<bool>(width + 2, false));
-    grid.emplace_back(std::vector<bool>(width + 2, false));
-
-    process_line(line, grid);
-
-    while (std::getline(stream, line) && !line.empty()) {
-        grid.emplace_back(std::vector<bool>(width + 2, false));
-        process_line(line, grid);
-    }
-
-    grid.emplace_back(std::vector<bool>(width + 2, false));
+    size_t const width = grid.back().size();
+    grid.front().assign(width, false);
+    grid.emplace_back(width, false);
 
     unsigned long long result = 0;
     for (unsigned int try_no = 0; try_no < nb_tries; ++try_no) {
         std::vector<std::pair<size_t, size_t>> to_remove;
+
         for (size_t row = 1; row < grid.size() - 1; ++row) {
             for (size_t col = 1; col < grid[row].size() - 1; ++col) {
                 if (grid[row][col]) {
