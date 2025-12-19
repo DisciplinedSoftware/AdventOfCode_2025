@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -19,7 +20,7 @@
 
 using namespace std::string_literals;
 
-unsigned long long solve_problem_1(std::string const& filename) {
+std::generator<std::string> read_lines(std::string const& filename) {
     std::filesystem::path const base = "./07/input"s;
     auto const filepath = base / filename;
     std::ifstream stream(filepath);
@@ -27,12 +28,17 @@ unsigned long long solve_problem_1(std::string const& filename) {
         throw std::runtime_error("Could not open file: "s + filepath.string());
     }
 
-    unsigned long long result = 0;
-
     std::string line;
-    if (!std::getline(stream, line)) {
-        throw std::runtime_error("Could not read from file: "s + filepath.string());
+    while (std::getline(stream, line) && !line.empty()) {
+        co_yield line;
     }
+}
+
+unsigned long long solve_problem_1(std::string const& filename) {
+    auto lines = read_lines(filename);
+    auto it = lines.begin();
+    auto line = *it;
+    ++it;
 
     std::unordered_set<size_t> beams;
     beams.reserve(line.size());
@@ -40,10 +46,10 @@ unsigned long long solve_problem_1(std::string const& filename) {
     std::unordered_set<size_t> next_beams;
     next_beams.reserve(line.size());
 
-    while (std::getline(stream, line) && !line.empty()) {
+    return std::ranges::fold_left(std::move(it), lines.end(), 0ull, [&beams, &next_beams](unsigned long long acc, auto const& line) { 
         for (auto beam : beams) {
             if (line[beam] == '^') {
-                ++result;
+                ++acc;
                 next_beams.emplace(beam-1);
                 next_beams.emplace(beam+1);
             }
@@ -54,33 +60,27 @@ unsigned long long solve_problem_1(std::string const& filename) {
 
         std::swap(beams, next_beams);
         next_beams.clear();
-    }
 
-    return result;
+        return acc;
+    });
 }
 
 unsigned long long solve_problem_2(std::string const& filename) {
-    std::filesystem::path const base = "./07/input"s;
-    auto const filepath = base / filename;
-    std::ifstream stream(filepath);
-    if (!stream.is_open()) {
-        throw std::runtime_error("Could not open file: "s + filepath.string());
-    }
-
-    std::string line;
-    if (!std::getline(stream, line)) {
-        throw std::runtime_error("Could not read from file: "s + filepath.string());
-    }
+    auto lines = read_lines(filename);
+    auto it = lines.begin();
+    auto line = *it;
+    ++it;
 
     std::unordered_map<size_t, unsigned long long> beams;
     beams.reserve(line.size());
     beams.emplace(line.find('S'), 1);
+
     std::unordered_map<size_t, unsigned long long> next_beams;
     next_beams.reserve(line.size());
 
-    while (std::getline(stream, line) && !line.empty()) {
+    for (; it != lines.end(); ++it) {
         for (auto [beam, count] : beams) {
-            if (line[beam] == '^') {
+            if ((*it)[beam] == '^') {
                 next_beams[beam-1] += count;
                 next_beams[beam+1] += count;
             }
