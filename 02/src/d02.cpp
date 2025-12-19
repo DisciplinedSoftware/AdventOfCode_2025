@@ -119,6 +119,14 @@ unsigned long long count_invalid_id(
     return result;
 }
 
+unsigned long long count_invalid_id(
+    std::string const& first,
+    std::string const& last,
+    size_t nb_max_repetitions) {
+    std::unordered_set<unsigned long long> seen;
+    return count_invalid_id(first, last, nb_max_repetitions, seen);
+}
+
 unsigned long long count_invalid_id(std::string const& filename, size_t nb_max_repetitions) {
     unsigned long long result = 0;
     std::unordered_set<unsigned long long> seen;
@@ -148,40 +156,33 @@ void expect(auto const & result, auto const & reference) {
 }
 
 int main() {
-    {
-        std::unordered_set<unsigned long long> seen;
-        expect(count_invalid_id("11", "22", 2, seen), 33ull);                           seen.clear();
-        expect(count_invalid_id("95", "115", 2, seen), 99ull);                          seen.clear();
-        expect(count_invalid_id("998", "1012", 2, seen), 1010ull);                      seen.clear();
-        expect(count_invalid_id("1188511880", "1188511890", 2, seen), 1188511885ull);   seen.clear();
-        expect(count_invalid_id("222220", "222224", 2, seen), 222222ull);               seen.clear();
-        expect(count_invalid_id("1698522", "1698528", 2, seen), 0ull);                  seen.clear();
-        expect(count_invalid_id("446443", "446449", 2, seen), 446446ull);               seen.clear();
-        expect(count_invalid_id("38593856", "38593862", 2, seen), 38593859ull);         seen.clear();
-        expect(count_invalid_id("565653", "565659", 2, seen), 0ull);                    seen.clear();
-        expect(count_invalid_id("824824821", "824824827", 2, seen), 0ull);              seen.clear();
-        expect(count_invalid_id("2121212118", "2121212124", 2, seen), 0ull);            seen.clear();
-    }
+    expect(count_invalid_id("11", "22", 2), 33ull);
+    expect(count_invalid_id("95", "115", 2), 99ull);
+    expect(count_invalid_id("998", "1012", 2), 1010ull);
+    expect(count_invalid_id("1188511880", "1188511890", 2), 1188511885ull);
+    expect(count_invalid_id("222220", "222224", 2), 222222ull);
+    expect(count_invalid_id("1698522", "1698528", 2), 0ull);
+    expect(count_invalid_id("446443", "446449", 2), 446446ull);
+    expect(count_invalid_id("38593856", "38593862", 2), 38593859ull);
+    expect(count_invalid_id("565653", "565659", 2), 0ull);
+    expect(count_invalid_id("824824821", "824824827", 2), 0ull);
+    expect(count_invalid_id("2121212118", "2121212124", 2), 0ull);
 
     expect(solve_problem_1("example"s), 1227775554ull);
     std::cout << solve_problem_1("first"s) << std::endl;
 
-
-    {
-        auto const nb_max_repetitions = std::numeric_limits<size_t>::max();
-        std::unordered_set<unsigned long long> seen;
-        expect(count_invalid_id("11", "22", nb_max_repetitions, seen), 33ull);                           seen.clear();
-        expect(count_invalid_id("95", "115", nb_max_repetitions, seen), 210ull);                         seen.clear();
-        expect(count_invalid_id("998", "1012", nb_max_repetitions, seen), 2009ull);                      seen.clear();
-        expect(count_invalid_id("1188511880", "1188511890", nb_max_repetitions, seen), 1188511885ull);   seen.clear();
-        expect(count_invalid_id("222220", "222224", nb_max_repetitions, seen), 222222ull);               seen.clear();
-        expect(count_invalid_id("1698522", "1698528", nb_max_repetitions, seen), 0ull);                  seen.clear();
-        expect(count_invalid_id("446443", "446449", nb_max_repetitions, seen), 446446ull);               seen.clear();
-        expect(count_invalid_id("38593856", "38593862", nb_max_repetitions, seen), 38593859ull);         seen.clear();
-        expect(count_invalid_id("565653", "565659", nb_max_repetitions, seen), 565656ull);               seen.clear();
-        expect(count_invalid_id("824824821", "824824827", nb_max_repetitions, seen), 824824824ull);      seen.clear();
-        expect(count_invalid_id("2121212118", "2121212124", nb_max_repetitions, seen), 2121212121ull);   seen.clear();
-    }
+    auto const nb_max_repetitions = std::numeric_limits<size_t>::max();
+    expect(count_invalid_id("11", "22", nb_max_repetitions), 33ull);
+    expect(count_invalid_id("95", "115", nb_max_repetitions), 210ull);
+    expect(count_invalid_id("998", "1012", nb_max_repetitions), 2009ull);
+    expect(count_invalid_id("1188511880", "1188511890", nb_max_repetitions), 1188511885ull);
+    expect(count_invalid_id("222220", "222224", nb_max_repetitions), 222222ull);
+    expect(count_invalid_id("1698522", "1698528", nb_max_repetitions), 0ull);
+    expect(count_invalid_id("446443", "446449", nb_max_repetitions), 446446ull);
+    expect(count_invalid_id("38593856", "38593862", nb_max_repetitions), 38593859ull);
+    expect(count_invalid_id("565653", "565659", nb_max_repetitions), 565656ull);
+    expect(count_invalid_id("824824821", "824824827", nb_max_repetitions), 824824824ull);
+    expect(count_invalid_id("2121212118", "2121212124", nb_max_repetitions), 2121212121ull);
 
     expect(solve_problem_2("example"s), 4174379265ull);
     std::cout << solve_problem_2("first"s) << std::endl;
