@@ -43,6 +43,8 @@ using namespace std::string_literals;
 struct Interval {
     unsigned long long begin;
     unsigned long long end;
+
+    auto operator<=>(Interval const& other) const = default;
 };
 
 std::ifstream open_input_file(std::string const& filename) {
@@ -73,7 +75,7 @@ std::generator<unsigned long long> read_ingredient_ids(std::ifstream& stream) {
     }
 }
 
-void sort_and_merge_intervals(std::vector<Interval>& intervals) {
+void merge_intervals(std::vector<Interval>& intervals) {
     if (intervals.size() <= 1) {
         return;
     }
@@ -84,13 +86,13 @@ void sort_and_merge_intervals(std::vector<Interval>& intervals) {
     std::vector<Interval> merged;
     merged.reserve(intervals.size());
 
-    auto next_it = intervals.begin() + 1;
     Interval current = intervals.front();
+    auto next_it = std::next(intervals.begin());
     while (next_it != intervals.end()) {
         if (next_it->begin <= current.end) {
             current.end = std::max(current.end, next_it->end);
         } else {
-            merged.push_back(current);
+            merged.push_back(std::move(current));
             current = *next_it;
         }
         ++next_it;
@@ -121,7 +123,7 @@ unsigned long long solve_problem_1(std::string const& filename) {
         fresh_intervals.push_back(std::forward<Interval>(intervals));
     }
 
-    sort_and_merge_intervals(fresh_intervals);
+    merge_intervals(fresh_intervals);
 
     return std::ranges::count_if(read_ingredient_ids(stream), 
         [&fresh_intervals](unsigned long long ingredient_id) {
@@ -137,7 +139,7 @@ unsigned long long solve_problem_2(std::string const& filename) {
         fresh_intervals.push_back(std::forward<Interval>(intervals));
     }
 
-    sort_and_merge_intervals(fresh_intervals);
+    merge_intervals(fresh_intervals);
 
     return std::ranges::fold_left(fresh_intervals, 0ull,
         [](unsigned long long acc, Interval const& interval) {
@@ -161,7 +163,7 @@ int main() {
         {16, 20},
         {12, 18}
     };
-    sort_and_merge_intervals(fresh_intervals);
+    merge_intervals(fresh_intervals);
     expect(is_ingredient_fresh(1, fresh_intervals), false);
     expect(is_ingredient_fresh(3, fresh_intervals), true);
     expect(is_ingredient_fresh(5, fresh_intervals), true);
