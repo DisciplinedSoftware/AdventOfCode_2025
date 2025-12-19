@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -43,6 +44,34 @@ struct Interval {
     unsigned long long begin;
     unsigned long long end;
 };
+
+std::ifstream open_input_file(std::string const& filename) {
+    std::filesystem::path const base = "./05/input"s;
+    auto const filepath = base / filename;
+    std::ifstream stream(filepath);
+    if (!stream.is_open()) {
+        throw std::runtime_error("Could not open file: "s + filepath.string());
+    }
+    return stream;
+}
+
+std::generator<Interval> read_intervals(std::ifstream& stream) {
+    std::string line;
+    while (std::getline(stream, line) && !line.empty()) {
+        auto const separator = line.find('-');
+        auto const begin = std::stoull(line.substr(0, separator));
+        auto const end = std::stoull(line.substr(separator + 1));
+        co_yield Interval{begin, end};
+    }
+}
+
+std::generator<unsigned long long> read_ingredient_ids(std::ifstream& stream) {
+    std::string line;
+    while (std::getline(stream, line) && !line.empty()) {
+        auto const ingredient_id = std::stoull(line);
+        co_yield ingredient_id;
+    }
+}
 
 void sort_and_merge_intervals(std::vector<Interval>& intervals) {
     if (intervals.size() <= 1) {
@@ -85,50 +114,27 @@ bool is_ingredient_fresh(unsigned long long ingredient_id, std::vector<Interval>
 }
 
 unsigned long long solve_problem_1(std::string const& filename) {
-    unsigned long long result = 0;
-
-    std::filesystem::path const base = "./05/input"s;
-    auto const filepath = base / filename;
+    std::ifstream stream = open_input_file(filename);
 
     std::vector<Interval> fresh_intervals;
-
-    std::ifstream stream(filepath);
-    std::string line;
-    // Parse fresh ingredients ID ranges
-    while (std::getline(stream, line) && !line.empty()) {
-        auto const separator = line.find('-');
-        auto const begin = std::stoull(line.substr(0, separator));
-        auto const end = std::stoull(line.substr(separator + 1));
-        fresh_intervals.emplace_back(begin, end);
+    for (auto&& intervals : read_intervals(stream)) {
+        fresh_intervals.push_back(std::forward<Interval>(intervals));
     }
 
     sort_and_merge_intervals(fresh_intervals);
 
-    while (std::getline(stream, line) && !line.empty()) {
-        auto const ingredient_id = std::stoull(line);
-        bool const is_fresh = is_ingredient_fresh(ingredient_id, fresh_intervals);
-        if (is_fresh) {
-            ++result;
-        }
-    }
-
-    return result;
+    return std::ranges::count_if(read_ingredient_ids(stream), 
+        [&fresh_intervals](unsigned long long ingredient_id) {
+            return is_ingredient_fresh(ingredient_id, fresh_intervals);
+        });
 }
 
 unsigned long long solve_problem_2(std::string const& filename) {
-    std::filesystem::path const base = "./05/input"s;
-    auto const filepath = base / filename;
+    std::ifstream stream = open_input_file(filename);
 
     std::vector<Interval> fresh_intervals;
-
-    std::ifstream stream(filepath);
-    std::string line;
-    // Parse fresh ingredients ID ranges
-    while (std::getline(stream, line) && !line.empty()) {
-        auto const separator = line.find('-');
-        auto const begin = std::stoull(line.substr(0, separator));
-        auto const end = std::stoull(line.substr(separator + 1));
-        fresh_intervals.emplace_back(begin, end);
+    for (auto&& intervals : read_intervals(stream)) {
+        fresh_intervals.push_back(std::forward<Interval>(intervals));
     }
 
     sort_and_merge_intervals(fresh_intervals);
