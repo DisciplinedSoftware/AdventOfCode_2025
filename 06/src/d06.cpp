@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -19,7 +20,7 @@
 
 using namespace std::string_literals;
 
-std::pair<std::vector<std::string>, std::string> parse(std::string const& filename) {
+std::generator<std::string> parse_input(std::string const& filename) {
     std::filesystem::path const base = "./06/input"s;
     auto const filepath = base / filename;
 
@@ -27,11 +28,14 @@ std::pair<std::vector<std::string>, std::string> parse(std::string const& filena
     if (stream.fail()) {
         throw std::runtime_error("Could not open file: " + filepath.string());
     }
-    std::vector<std::string> lines;
     std::string line;
     while (std::getline(stream, line)) {
-        lines.push_back(line);
+        co_yield line;
     }
+}
+
+std::pair<std::vector<std::string>, std::string> parse(std::string const& filename) {
+    auto lines = parse_input(filename) | std::ranges::to<std::vector<std::string>>();
 
     auto const lineOp = lines.back();
     lines.pop_back();
@@ -79,6 +83,28 @@ unsigned long long solve_problem_1(std::string const& filename) {
     return result;
 }
 
+std::generator<unsigned long long> extract_numbers(std::vector<std::string> const& lines, size_t& pos) {
+    while (pos < lines[0].size()) {
+        auto valid = false;
+        auto const number = std::ranges::fold_left(lines, 0ull,
+            [&valid, &pos](unsigned long long acc, auto const& line) {
+                auto c = line[pos];
+                if (c != ' ') {
+                    valid = true;
+                    return acc * 10 + (c - '0');
+                }
+                return acc;
+            });
+        ++pos;
+
+        if (!valid) {
+            co_return;
+        }
+
+        co_yield number;
+    }
+}
+
 unsigned long long solve_problem_2(std::string const& filename) {
     auto const [lines, lineOp] = parse(filename);
 
@@ -86,32 +112,21 @@ unsigned long long solve_problem_2(std::string const& filename) {
     size_t pos = 0;
     while (pos < lineOp.size()) {
         char const op = lineOp[pos];
-        std::vector<unsigned long long> nums;
-        while (pos < lineOp.size()) {
-            auto valid = false;
-            unsigned long long num = 0ull;
-            for (auto const& line : lines) {
-                auto c = line[pos];
-                if (c != ' ') {
-                    valid = true;
-                    num = num * 10 + (c - '0');
+        switch (op) {
+            case '+':
+                {
+                    auto const value = std::ranges::fold_left(extract_numbers(lines, pos), 0ull, std::plus<>{});
+                    result += value;
                 }
-            }
-            ++pos;
-
-            if (!valid) {
                 break;
-            }
-            nums.push_back(num);
-        }
-
-        if (op == '+') {
-            auto const value = std::ranges::fold_left(nums, 0ull, std::plus<>{});
-            result += value;
-        }
-        else if (op == '*') {
-            auto const value = std::ranges::fold_left(nums, 1ull, std::multiplies<>{});
-            result += value;
+            case '*':
+                {
+                    auto const value = std::ranges::fold_left(extract_numbers(lines, pos), 1ull, std::multiplies<>{});
+                    result += value;
+                }
+                break;
+            default:
+                throw std::runtime_error("Unexpected operator: " + std::string(1, op));
         }
     }
 
