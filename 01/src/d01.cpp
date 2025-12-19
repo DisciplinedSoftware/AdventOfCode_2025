@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -19,12 +20,9 @@
 
 using namespace std::string_literals;
 
-unsigned long long solve_problem_1(std::string const& filename) {
+std::generator<std::pair<char, int>> parse_input(std::string const& filename) {
     std::filesystem::path const base = "./01/input"s;
     auto const filepath = base / filename;
-
-    int dial = 50;
-    unsigned long long counter = 0;
 
     std::ifstream stream(filepath);
     std::string line;
@@ -32,18 +30,31 @@ unsigned long long solve_problem_1(std::string const& filename) {
         throw std::runtime_error("Could not open file: " + filepath.string());
     }
     while (std::getline(stream, line) || !line.empty()) {
-        auto steps = std::stoi(line.substr(1));
-        if (line[0] == 'L') {
-            dial -= steps;
+        char direction = line[0];
+        int steps = std::stoi(line.substr(1));
+        co_yield {direction, steps};
+    }
+}
+
+unsigned long long solve_problem_1(std::string const& filename) {
+    std::filesystem::path const base = "./01/input"s;
+    auto const filepath = base / filename;
+
+    int dial = 50;
+    unsigned long long counter = 0;
+
+    for (auto const [direction, steps] : parse_input(filename)) {
+        if (direction == 'L') {
+            dial += 100 - (steps % 100);
         }
-        else if (line[0] == 'R') {
+        else if (direction == 'R') {
             dial += steps;
         }
         else {
             throw std::runtime_error("Invalid direction");
         }
 
-        dial = (dial + 100) % 100;
+        dial %= 100;
         if (dial == 0) {
             ++counter;
         }
@@ -59,21 +70,14 @@ unsigned long long solve_problem_2(std::string const& filename) {
     int dial = 50;
     unsigned long long counter = 0;
 
-    std::ifstream stream(filepath);
-    std::string line;
-    if (stream.fail()) {
-        throw std::runtime_error("Could not open file: " + filepath.string());
-    }
-    while (std::getline(stream, line) || !line.empty()) {
-        auto steps = std::stoi(line.substr(1));
-
-        counter += static_cast<unsigned long long>(steps / 100);
+    for (auto [direction, steps] : parse_input(filename)) {
+        counter += steps / 100;
         steps %= 100;
 
-        if (line[0] == 'L') {
+        if (direction == 'L') {
             dial -= steps;
         }
-        else if (line[0] == 'R') {
+        else if (direction == 'R') {
             dial += steps;
         }
         else {
@@ -100,8 +104,8 @@ void expect(auto const & result, auto const & reference) {
 }
 
 int main() {
-    // expect(solve_problem_1("example"s), 3u);
-    // std::cout << solve_problem_1("first"s) << std::endl;
+    expect(solve_problem_1("example"s), 3u);
+    std::cout << solve_problem_1("first"s) << std::endl;
 
     expect(solve_problem_2("example"s), 6u);
     std::cout << solve_problem_2("first"s) << std::endl;
