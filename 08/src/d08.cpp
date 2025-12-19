@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -21,17 +22,6 @@
 #include <vector>
 
 using namespace std::string_literals;
-
-std::ifstream open(std::string const & filename) {
-    std::filesystem::path const base = "./08/input"s;
-    auto const filepath = base / filename;
-    std::ifstream stream(filepath);
-    if (!stream.is_open()) {
-        throw std::runtime_error("Could not open file: "s + filepath.string());
-    }
-
-    return stream;
-}
 
 struct Point3D {
     unsigned long long x;
@@ -64,17 +54,26 @@ unsigned long long const& get(Point3D const& p) {
     else static_assert(N < 3, "Index out of bounds in std::get<Point3D>");
 }
 
-unsigned long long solve_problem_1(std::ifstream&& stream, unsigned int nb_shortest_connections) {
-    std::vector<Point3D> connections;
+std::generator<Point3D> read_points(std::string const& filename) {
+    std::filesystem::path const base = "./08/input"s;
+    auto const filepath = base / filename;
+    std::ifstream stream(filepath);
+    if (!stream.is_open()) {
+        throw std::runtime_error("Could not open file: "s + filepath.string());
+    }
 
     std::string line;
-    while (std::getline(stream, line)) {
+    while (std::getline(stream, line) && !line.empty()) {
         std::istringstream line_stream(line);
         unsigned long long x, y, z;
         char dummy;
         line_stream >> x >> dummy >> y >> dummy >> z;
-        connections.emplace_back(x, y, z);
+        co_yield Point3D{x, y, z};
     }
+}
+
+unsigned long long solve_problem_1(std::string const& filename, unsigned int nb_shortest_connections) {
+    std::vector<Point3D> const connections = read_points(filename) | std::ranges::to<std::vector>();
 
     std::vector<std::pair<unsigned long long, std::pair<size_t, size_t>>> distances;
     for (size_t i = 0; i < connections.size(); ++i) {
@@ -125,21 +124,8 @@ unsigned long long solve_problem_1(std::ifstream&& stream, unsigned int nb_short
     return std::ranges::fold_left(nb_junction_boxes.begin(), nb_junction_boxes.begin()+3, 1ULL, std::multiplies<>{});
 }
 
-unsigned long long solve_problem_1(std::string const& filename, unsigned int nb_shortest_connections) {
-    return solve_problem_1(open(filename), nb_shortest_connections);
-}
-
-unsigned long long solve_problem_2(std::ifstream&& stream) {
-    std::vector<Point3D> connections;
-
-    std::string line;
-    while (std::getline(stream, line)) {
-        std::istringstream line_stream(line);
-        unsigned long long x, y, z;
-        char dummy;
-        line_stream >> x >> dummy >> y >> dummy >> z;
-        connections.emplace_back(x, y, z);
-    }
+unsigned long long solve_problem_2(std::string const& filename) {
+    std::vector<Point3D> const connections = read_points(filename) | std::ranges::to<std::vector>();
 
     std::vector<std::pair<unsigned long long, std::pair<size_t, size_t>>> distances;
     for (size_t i = 0; i < connections.size(); ++i) {
@@ -196,10 +182,6 @@ unsigned long long solve_problem_2(std::ifstream&& stream) {
     }
 
     return result.first.x * result.second.x;
-}
-
-unsigned long long solve_problem_2(std::string const& filename) {
-    return solve_problem_2(open(filename));
 }
 
 void expect(auto const & result, auto const & reference) {
