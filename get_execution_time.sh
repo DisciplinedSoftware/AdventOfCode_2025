@@ -18,7 +18,7 @@ echo "Running each program $RUNS times"
 echo "----------------------------------------"
 
 # Measure time for each program
-for i in {01..25}; do
+for i in {01..12}; do
     # Skip number 14 as it needs to be executed manually
     if [ "$i" = "14" ]; then
         continue

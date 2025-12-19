@@ -1,0 +1,116 @@
+Execution time measurements - Fri Dec 19 12:22:09 AM EST 2025
+Running each program 5 times
+----------------------------------------
+Running ./build/Release/d01 5 times...
+Run 1: .004 seconds
+Run 2: .004 seconds
+Run 3: .003 seconds
+Run 4: .003 seconds
+Run 5: .002 seconds
+Average time for d01: .003 seconds
+----------------------------------------
+Running ./build/Release/d02 5 times...
+Run 1: .003 seconds
+Run 2: .002 seconds
+Run 3: .002 seconds
+Run 4: .003 seconds
+Run 5: .002 seconds
+Average time for d02: .002 seconds
+----------------------------------------
+Running ./build/Release/d03 5 times...
+Run 1: .008 seconds
+Run 2: .003 seconds
+Run 3: .002 seconds
+Run 4: .003 seconds
+Run 5: .003 seconds
+Average time for d03: .003 seconds
+----------------------------------------
+Running ./build/Release/d04 5 times...
+Run 1: .008 seconds
+Run 2: .011 seconds
+Run 3: .013 seconds
+Run 4: .008 seconds
+Run 5: .013 seconds
+Average time for d04: .010 seconds
+----------------------------------------
+Running ./build/Release/d05 5 times...
+Run 1: .003 seconds
+Run 2: .002 seconds
+Run 3: .002 seconds
+Run 4: .002 seconds
+Run 5: .002 seconds
+Average time for d05: .002 seconds
+----------------------------------------
+Running ./build/Release/d06 5 times...
+Run 1: .007 seconds
+Run 2: .003 seconds
+Run 3: .003 seconds
+Run 4: .002 seconds
+Run 5: .008 seconds
+Average time for d06: .004 seconds
+----------------------------------------
+Running ./build/Release/d07 5 times...
+Run 1: .005 seconds
+Run 2: .003 seconds
+Run 3: .003 seconds
+Run 4: .008 seconds
+Run 5: .003 seconds
+Average time for d07: .004 seconds
+----------------------------------------
+Running ./build/Release/d08 5 times...
+Run 1: .131 seconds
+Run 2: .121 seconds
+Run 3: .126 seconds
+Run 4: .124 seconds
+Run 5: .115 seconds
+Average time for d08: .123 seconds
+----------------------------------------
+Running ./build/Release/d09 5 times...
+Run 1: .067 seconds
+Run 2: .067 seconds
+Run 3: .071 seconds
+Run 4: .070 seconds
+Run 5: .065 seconds
+Average time for d09: .068 seconds
+----------------------------------------
+Running ./build/Release/d10 5 times...
+Run 1: 2.422 seconds
+Run 2: 2.249 seconds
+Run 3: 2.257 seconds
+Run 4: 2.249 seconds
+Run 5: 2.215 seconds
+Average time for d10: 2.278 seconds
+----------------------------------------
+Running ./build/Release/d11 5 times...
+Run 1: .012 seconds
+Run 2: .003 seconds
+Run 3: .007 seconds
+Run 4: .004 seconds
+Run 5: .004 seconds
+Average time for d11: .006 seconds
+----------------------------------------
+Running ./build/Release/d12 5 times...
+Run 1: .995 seconds
+Run 2: .984 seconds
+Run 3: .951 seconds
+Run 4: .964 seconds
+Run 5: .958 seconds
+Average time for d12: .970 seconds
+----------------------------------------
+
+Final Results - Average Execution Times (sorted from slowest to fastest):
+
+d10                 : 2.278 seconds (average of 5 runs)
+d12                 : 0.970 seconds (average of 5 runs)
+d08                 : 0.123 seconds (average of 5 runs)
+d09                 : 0.068 seconds (average of 5 runs)
+d04                 : 0.010 seconds (average of 5 runs)
+d11                 : 0.006 seconds (average of 5 runs)
+d07                 : 0.004 seconds (average of 5 runs)
+d06                 : 0.004 seconds (average of 5 runs)
+d03                 : 0.003 seconds (average of 5 runs)
+d01                 : 0.003 seconds (average of 5 runs)
+d05                 : 0.002 seconds (average of 5 runs)
+d02                 : 0.002 seconds (average of 5 runs)
+
+Results have been saved to execution_times.txt
