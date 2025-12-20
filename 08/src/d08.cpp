@@ -88,7 +88,7 @@ unsigned long long solve_problem_1(std::string const& filename, unsigned int nb_
         }
     }
 
-    std::multimap<size_t, size_t> distance_map;
+    std::unordered_multimap<size_t, size_t> distance_map;
     std::ranges::sort(distances);
     for (unsigned int k = 0; k < nb_shortest_connections && k < distances.size(); ++k) {
         distance_map.emplace(distances[k].second.first, distances[k].second.second);
