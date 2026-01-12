@@ -50,6 +50,18 @@ namespace std {
     };
 }
 
+struct Chronometer {
+    std::chrono::steady_clock::time_point start_time;
+
+    Chronometer() : start_time(std::chrono::steady_clock::now()) {}
+
+    void stop_and_report() {
+        auto end_time =  std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        std::cout << "Elapsed time: " << duration << " ms" << std::endl;
+    }
+};
+
 constexpr size_t nb_shapes = 6;
 
 unsigned long long solve_problem_1(std::ifstream&& stream) {
@@ -119,6 +131,8 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
 
     std::string line;
     while (std::getline(stream, line) && !line.empty()) {
+        //Chronometer chrono_area_solving;
+
         // Parse areas to fill
         auto const x_separator = line.find('x');
         size_t const width = std::stoul(line.substr(0, x_separator));
@@ -221,6 +235,11 @@ unsigned long long solve_problem_1(std::ifstream&& stream) {
         if (solve()) {
             ++result;
         }
+        else {
+            std::cout << "Impossible to fill area " << width << "x" << length << std::endl;
+        }
+
+        // chrono_area_solving.stop_and_report();
     }
 
     return result;
